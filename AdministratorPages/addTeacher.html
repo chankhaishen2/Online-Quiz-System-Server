@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Add Teacher</title>
+    </head>
+
+    <link rel="stylesheet" href="/styles.css">
+
+    <body>
+        <div id="sideNavigation" class="SideNavigation">
+            <a href="javascript:void(0)" class="CloseButton" onclick="closeSideNavigation()">&times;</a>
+            <a href="/administrator/teacherList.html">Teacher List</a>
+            <a href="/administrator/studentList.html">Student List</a>
+        </div>
+
+        <h1 class="Title">Online Quiz System</h1>
+
+        <button class="ChangePasswordButton">
+            <a href="/administrator/changePassword.html">Change Password</a>
+        </button>
+        <button class="LogoutButton" onclick="logout()">Logout</button>
+        <p/>
+
+        <span class="SideNavigationIcon" onclick="openSideNavigation()">&#9776 Add Teacher</span>
+
+        <hr/>
+
+        <form method="post" action="/addteacher" enctype="application/x-www-form-urlencoded">
+            <p/>
+            <label for="staffNumber">Staff Number: </label>
+            <br/>
+            <input type="text" name="staffNumber" maxlength="10" minlength="1" size="10" placeholder="Staff Number" required/>
+
+            <p/>
+            <label for="name">Name: </label>
+            <br/>
+            <input type="text" name="name" maxlength="100" minlength="1" size="50" placeholder="Name" required/>
+
+            <p/>
+            <label for="password">Password: </label>
+            <br/>
+            <input id="password" type="password" name="password" minlength="8" size="30" placeholder="Password" onchange="checkPassword()" required/>
+
+            <p/>
+            <input type="submit" value="Add" class="FormSubmitButton"/>
+        </form>
+    </body>
+
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+    <script>
+        function logout() {
+            axios.delete('/logout').then(response=>{
+                console.log('Logout', response);
+            }).catch(error=>{
+                console.log('Logout', error);
+            });
+        }
+
+        function openSideNavigation() {
+            document.getElementById('sideNavigation').style.width = '250px';
+        }
+
+        function closeSideNavigation() {
+            document.getElementById('sideNavigation').style.width = '0';
+        }
+
+        function checkPassword() {
+            const password = document.getElementById("password").value;
+            console.log(password);
+
+            if (!/[a-z]/.test(password)) {
+                alert('Password must contain lowercase alphabet.');
+            }
+            else if (!/[A-Z]/.test(password)) {
+                alert('Password must contain uppercase alphabet.');
+            }
+            else if (!/[0-9]/.test(password)) {
+                alert('Password must contain number.');
+            }
+            else if (password.length < 8) {
+                alert('Password must have at least 8 characters.');
+            }
+        }
+    </script>
+</html>

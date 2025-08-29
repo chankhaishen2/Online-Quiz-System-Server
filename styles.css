@@ -1,0 +1,130 @@
+.SideNavigation {
+    height: 100%;
+    width: 0;
+    position: fixed;
+    z-index: 1;
+    top: 0;
+    left: 0;
+    background-color: #A83916;
+    overflow-x: hidden;
+    transition: 0.5s;
+    padding-top: 50px;
+}
+
+.SideNavigation a {
+    padding-left: 10px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    padding-right: 30px;
+    text-decoration: none;
+    font-size: 30px;
+    color:#FFFFFF;
+    display: block;
+    transition: 0.3s;
+}
+
+.SideNavigation a:hover {
+    color: #989797;
+}
+
+.SideNavigation .CloseButton {
+    position: absolute;
+    top: 0;
+    right: 10px;
+    font-size: 30px;
+    margin-left: 50px;
+}
+
+.SideNavigationIcon {
+    font-size: 30px;
+    cursor: pointer;
+}
+
+body {
+    background-color: #c7a084;
+    padding: 20px;
+}
+
+.Title {
+    font-size: 40px;
+}
+
+.BigWord {
+    font-size: 30px;
+}
+
+.LogoutButton {
+    background-color: #952503;
+    color: #FFFFFF;
+    font-size: 20px;
+}
+
+.AddButton {
+    background-color: #04a11e;
+    font-size: 30px;
+    padding: 10px;
+}
+
+.AddButton a {
+    text-decoration: none;
+    color: #FFFFFF;
+}
+
+.ChangePasswordButton {
+    background-color: #a83916;
+    font-size: 20px;
+}
+
+.ChangePasswordButton a {
+    text-decoration: none;
+    color: #FFFFFF;
+}
+
+input {
+    background-color: #afacab;
+    color: #000000;
+    font-size: 25px;
+}
+
+label {
+    font-size: 25px;
+}
+
+.FormSubmitButton {
+    background-color: #A83916;
+    color: #FFFFFF;
+    font-size: 25px;
+}
+
+table th, td {
+    border: 1px solid #000000;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+table th {
+    background-color: #A83916;
+    color: #FFFFFF;
+}
+
+table td {
+    background-color: #BA8F62;
+    color: #000000;
+}
+
+.EditButton {
+    background-color: #12857e;
+}
+
+.EditButton a {
+    text-decoration: none;
+    color: #FFFFFF;
+}
+
+.DeleteButton {
+    background-color: #e54444;
+    color: #FFFFFF;
+}

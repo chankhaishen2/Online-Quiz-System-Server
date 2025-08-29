@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Edit Teacher</title>
+    </head>
+
+    <link rel="stylesheet" href="/styles.css">
+
+    <body>
+        <div id="sideNavigation" class="SideNavigation">
+            <a href="javascript:void(0)" class="CloseButton" onclick="closeSideNavigation()">&times;</a>
+            <a href="/administrator/teacherList.html">Teacher List</a>
+            <a href="/administrator/studentList.html">Student List</a>
+        </div>
+
+        <h1 class="Title">Online Quiz System</h1>
+
+        <button class="ChangePasswordButton">
+            <a href="/administrator/changePassword.html">Change Password</a>
+        </button>
+        <button class="LogoutButton" onclick="logout()">Logout</button>
+        <p/>
+
+        <span class="SideNavigationIcon" onclick="openSideNavigation()">&#9776 Edit Teacher</span>
+
+        <hr/>
+
+        <form method="post" action="/editteacher" enctype="application/x-www-form-urlencoded">
+            <p/>
+            <label for="staffNumber">Staff Number: </label>
+            <br/>
+            <input id="staffNumber" type="text" name="staffNumber" maxlength="10" minlength="1" size="10" placeholder="Staff Number" required readonly/>
+
+            <p/>
+            <label for="name">Name: </label>
+            <br/>
+            <input id="name" type="text" name="name" maxlength="100" minlength="1" size="50" placeholder="Name" required/>
+
+            <p/>
+            <label for="newPassword">New Password (Optional): </label>
+            <br/>
+            <input id="newPassword" type="password" name="newPassword" minlength="8" size="30" placeholder="New Password" onchange="checkPassword()"/>
+
+            <p/>
+            <input type="submit" value="Edit" class="FormSubmitButton"/>
+        </form>
+    </body>
+
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+    <script>
+        function logout() {
+            axios.delete('/logout').then(response=>{
+                console.log('Logout', response);
+            }).catch(error=>{
+                console.log('Logout', error);
+            });
+        }
+
+        function openSideNavigation() {
+            document.getElementById('sideNavigation').style.width = '250px';
+        }
+
+        function closeSideNavigation() {
+            document.getElementById('sideNavigation').style.width = '0';
+        }
+
+        function checkNewPassword() {
+            const newPassword = document.getElementById("newPassword").value;
+            console.log(newPassword);
+
+            // Allow not set new password
+            if (newPassword == '') {
+                return;
+            } 
+
+            if (!/[a-z]/.test(newPassword)) {
+                alert('Password must contain lowercase alphabet.');
+            }
+            else if (!/[A-Z]/.test(newPassword)) {
+                alert('Password must contain uppercase alphabet.');
+            }
+            else if (!/[0-9]/.test(newPassword)) {
+                alert('Password must contain number.');
+            }
+            else if (newPassword.length < 8) {
+                alert('Password must have at least 8 characters.');
+            }
+        }
+
+        // Get teacher information
+        const params = new URLSearchParams(window.location.search);
+        const staffNumber = params.get('staffNumber');
+        document.getElementById('staffNumber').value = staffNumber;
+
+        axios.get('http://localhost:5000/teacher?staffNumber=' + staffNumber).then(results=>{
+            console.log('Get teacher information', results);
+            const teacher = results.data.teacher;
+
+            document.getElementById('name').value = teacher.name;
+            
+        }).catch(error=>{
+            console.log('Get teacher information error', error);
+            
+            if (error.response.status === 400) {
+                alert(error.response.data.message);
+            }
+            else {
+                alert('Cannot get teacher information.');
+            }
+        });
+    </script>
+</html>

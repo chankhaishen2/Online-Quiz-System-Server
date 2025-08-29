@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Student list</title>
+    </head>
+
+    <link rel="stylesheet" href="/styles.css">
+
+    <body>
+        <div id="sideNavigation" class="SideNavigation">
+            <a href="javascript:void(0)" class="CloseButton" onclick="closeSideNavigation()">&times;</a>
+            <a href="/administrator/teacherList.html">Teacher List</a>
+            <a href="/administrator/studentList.html">Student List</a>
+        </div>
+
+        <h1 class="Title">Online Quiz System</h1>
+
+        <button class="ChangePasswordButton">
+            <a href="/administrator/changePassword.html">Change Password</a>
+        </button>
+        <button class="LogoutButton" onclick="logout()">Logout</button>
+        <p/>
+
+        <span class="SideNavigationIcon" onclick="openSideNavigation()">&#9776 Student List</span>
+
+        <hr/>
+
+        <button class="AddButton">
+            <a href="/administrator/addStudent.html">Add Student</a>
+        </button>
+
+        <p/>
+
+        <table>
+            <thead>
+                <th></th>
+                <th>Name</th>
+                <th>Matriculation Number</th>
+                <th></th>
+                <th></th>
+            </thead>
+            <tbody id="studentList"></tbody>
+        </table>
+    </body>
+
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+    <script>
+        function logout() {
+            axios.delete('/logout').then(response=>{
+                console.log('Logout', response);
+            }).catch(error=>{
+                console.log('Logout', error);
+            });
+        }
+
+        function openSideNavigation() {
+            document.getElementById('sideNavigation').style.width = '250px';
+        }
+
+        function closeSideNavigation() {
+            document.getElementById('sideNavigation').style.width = '0';
+        }
+
+        function remove(matriculationNumber) {
+            console.log('Delete', matriculationNumber);
+
+            axios.delete('http://localhost:5000/deletestudent?matriculationNumber=' + matriculationNumber).then(response=>{
+                console.log('Delete student', response);
+                alert('The student was deleted.');
+                window.location.reload();
+                
+            }).catch(error=>{
+                console.log('Delete student error', error);
+                alert('Cannot delete the student');
+            });
+        }
+
+        // Get list of teachers
+        axios.get('http://localhost:5000/students').then(results=>{
+            console.log('Get list of students', results);
+            const students = results.data.students;
+
+            var rows = '';
+            for (var i = 0; i < students.length; i++) {
+                rows += `
+                    <tr>
+                        <td>${i+1}</td>
+                        <td>${students[i].name}</td>
+                        <td>${students[i].matriculationNumber}</td>
+                        <td><button class="EditButton"><a href="/administrator/editStudent.html?matriculationNumber=${students[i].matriculationNumber}">Edit</a></button></td>
+                        <td><button class="DeleteButton" onclick="remove('${students[i].matriculationNumber}')">Delete</button></td>
+                    </tr>
+                `;
+            }
+            document.getElementById('studentList').innerHTML = rows;
+            
+        }).catch(error=>{
+            console.log('Get list of students error', error);
+            alert('Cannot get list of students.');
+        });
+    </script>
+</html>
