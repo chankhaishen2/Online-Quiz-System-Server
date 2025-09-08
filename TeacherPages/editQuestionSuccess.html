@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <title>Old Password Not Correct</title>
+        <title>Edit Question Success</title>
     </head>
 
     <link rel="stylesheet" href="/styles.css">
@@ -9,20 +9,25 @@
     <body>
         <div id="sideNavigation" class="SideNavigation">
             <a href="javascript:void(0)" class="CloseButton" onclick="closeSideNavigation()">&times;</a>
-            <a href="/administrator/teacherList.html">Teacher List</a>
-            <a href="/administrator/studentList.html">Student List</a>
+            <a href="/teacher/quizList.html">Quiz List</a>
         </div>
 
         <h1 class="Title">Online Quiz System</h1>
 
+        <button class="ChangePasswordButton">
+            <a href="/teacher/changePassword.html">Change Password</a>
+        </button>
+
         <button class="LogoutButton" onclick="logout()">Logout</button>
         <p/>
 
-        <span class="SideNavigationIcon" onclick="openSideNavigation()">&#9776 Old Password Not Correct</span>
+        <span class="SideNavigationIcon" onclick="openSideNavigation()">&#9776 Edit Question Success</span>
 
         <hr/>
 
-        <h2 class="BigWord">Old password is not correct.</h2>
+        <h2 class="BigWord">The question was edited.</h2>
+
+        <button class="EditButton"><a id="quizDetailsButtonLink">Quiz Details</a></button>
     </body>
 
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
@@ -43,5 +48,11 @@
         function closeSideNavigation() {
             document.getElementById('sideNavigation').style.width = '0';
         }
+
+        // Assign link for quiz details button
+        const params = new URLSearchParams(window.location.search);
+        const quizName = params.get('quizName');
+
+        document.getElementById('quizDetailsButtonLink').href = 'http://localhost:5000/teacher/quizDetails.html?name=' + quizName;
     </script>
 </html>

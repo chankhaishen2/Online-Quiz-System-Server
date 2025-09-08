@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Add Question Success</title>
+    </head>
+
+    <link rel="stylesheet" href="/styles.css">
+
+    <body>
+        <div id="sideNavigation" class="SideNavigation">
+            <a href="javascript:void(0)" class="CloseButton" onclick="closeSideNavigation()">&times;</a>
+            <a href="/teacher/quizList.html">Quiz List</a>
+        </div>
+
+        <h1 class="Title">Online Quiz System</h1>
+
+        <button class="ChangePasswordButton">
+            <a href="/teacher/changePassword.html">Change Password</a>
+        </button>
+
+        <button class="LogoutButton" onclick="logout()">Logout</button>
+        <p/>
+
+        <span class="SideNavigationIcon" onclick="openSideNavigation()">&#9776 Add Question Success</span>
+
+        <hr/>
+
+        <h2 class="BigWord">The question was added.</h2>
+
+        <button class="AddQuestionButton"><a id="addQuestionButtonLink">Add More Question</a></button>
+        &nbsp;
+        <button class="EditButton"><a id="quizDetailsButtonLink">Quiz Details</a></button>
+    </body>
+
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+    <script>
+        function logout() {
+            axios.delete('/logout').then(response=>{
+                console.log('Logout', response);
+            }).catch(error=>{
+                console.log('Logout', error);
+            });
+        }
+
+        function openSideNavigation() {
+            document.getElementById('sideNavigation').style.width = '250px';
+        }
+
+        function closeSideNavigation() {
+            document.getElementById('sideNavigation').style.width = '0';
+        }
+
+        // Assign link for add question button and quiz details button
+        const params = new URLSearchParams(window.location.search);
+        const quizName = params.get('quizName');
+
+        document.getElementById('addQuestionButtonLink').href = 'http://localhost:5000/teacher/addQuestion.html?quizName=' + quizName;
+        document.getElementById('quizDetailsButtonLink').href = 'http://localhost:5000/teacher/quizDetails.html?name=' + quizName;
+    </script>
+</html>

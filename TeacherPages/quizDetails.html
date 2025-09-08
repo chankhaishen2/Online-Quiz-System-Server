@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Quiz Details</title>
+    </head>
+
+    <link rel="stylesheet" href="/styles.css">
+
+    <body>
+        <div id="sideNavigation" class="SideNavigation">
+            <a href="javascript:void(0)" class="CloseButton" onclick="closeSideNavigation()">&times;</a>
+            <a href="/teacher/quizList.html">Quiz List</a>
+        </div>
+
+        <h1 class="Title">Online Quiz System</h1>
+
+        <button class="ChangePasswordButton">
+            <a href="/teacher/changePassword.html">Change Password</a>
+        </button>
+
+        <button class="LogoutButton" onclick="logout()">Logout</button>
+        <p/>
+
+        <span class="SideNavigationIcon" onclick="openSideNavigation()">&#9776 Quiz Details</span>
+
+        <hr/>
+
+        <div id="quizDetails"></div>
+    </body>
+
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+    <script>
+        function logout() {
+            axios.delete('/logout').then(response=>{
+                console.log('Logout', response);
+            }).catch(error=>{
+                console.log('Logout', error);
+            });
+        }
+
+        function openSideNavigation() {
+            document.getElementById('sideNavigation').style.width = '250px';
+        }
+
+        function closeSideNavigation() {
+            document.getElementById('sideNavigation').style.width = '0';
+        }
+
+        function removeParticipant(matriculationNumber) {
+            const params = new URLSearchParams(window.location.search);
+            const quizName = params.get('name')
+            console.log('Remove participant', matriculationNumber, 'quiz name', quizName);
+
+            axios.delete('http://localhost:5000/removeparticipant?matriculationNumber=' + matriculationNumber + '&quizName=' + quizName).then(response=>{
+                console.log('Request delete participant', response);
+                alert('The participant is removed.');
+                window.location.reload();
+
+            }).catch(error=>{
+                console.log('Request delete participant error', error);
+                alert('Cannot remove the participant.');
+            });
+        }
+
+        function addParticipant() {
+            const matriculationNumber = document.getElementById('newParticipantMatriculationNumber').value;
+            const params = new URLSearchParams(window.location.search);
+            const quizName = params.get('name');
+            console.log('Add participant', matriculationNumber, 'quiz name', quizName);
+
+            axios.post('http://localhost:5000/addparticipant', {
+                matriculationNumber: matriculationNumber,
+                quizName: quizName
+            }).then(response=>{
+                console.log('Request add participant', response);
+                alert('The participant is added.');
+                window.location.reload();
+
+            }).catch(error=>{
+                console.log('Request add participant error', error);
+
+                if (error.response.status === 400) {
+                    alert(error.response.data.message);
+                } else {
+                    alert('Cannot add participant.');
+                }
+            });
+        }
+
+        function removeQuestion(questionId) {
+            const params = new URLSearchParams(window.location.search);
+            const quizName = params.get('name');
+            console.log('Delete question', 'id', questionId, 'quiz name', quizName);
+
+            axios.delete('http://localhost:5000/deletequestion?quizName=' + quizName + '&questionId=' + questionId).then(response=>{
+                console.log('Request delete question', response);
+                alert('The question is deleted.');
+                window.location.reload();
+
+            }).catch(error=>{
+                console.log('Request delete question error', error);
+                alert('Cannot delete question.');
+            });
+        }
+
+        // Get quiz details
+        const params = new URLSearchParams(window.location.search);
+        const quizName = params.get('name');
+
+        axios.get('http://localhost:5000/teacher/quiz?name=' + quizName).then(result=>{
+            console.log('Get quiz details', result);
+            
+            const quiz = result.data.quiz;
+
+            var participants = '';
+            for (var i = 0; i < quiz.participants.length; i++) {
+                participants += `
+                    <tr>
+                        <td>${i+1}</td>
+                        <td>${quiz.participants[i].name}</td>
+                        <td>${quiz.participants[i].matriculationNumber}</td>
+                        <td><button class="DeleteButton" onclick="removeParticipant('${quiz.participants[i].matriculationNumber}')">Remove</button></td>
+                    </tr>
+                `;
+            }
+
+            var questions = '';
+            for (var j = 0; j < quiz.questions.length; j++) {
+                questions += `
+                    <div class="QuestionContainer">
+                        ${quiz.questions[j]?.diagramFileName == null ? '' : `<img alt="Question Diagram" width="300" height="300" src="http://localhost:5000/teacher/questionDiagram/${quiz.questions[j].diagramFileName}" />`}
+                        <p class="QuestionText">${j+1}. ${quiz.questions[j].question}</p>
+                        <p> A. ${quiz.questions[j].choiceA}</p>
+                        <p> B. ${quiz.questions[j].choiceB}</p>
+                        <p> C. ${quiz.questions[j].choiceC}</p>
+                        <p> D. ${quiz.questions[j].choiceD}</p>
+                        <span>Created at: ${(new Date(quiz.questions[j].createdAt)).toLocaleString()}, Last edited at: ${(new Date(quiz.questions[j].editedAt)).toLocaleString()}</span>
+                        <p/>
+                        <button class="EditButton"><a href="http://localhost:5000/teacher/editQuestion.html?quizName=${quizName}&questionId=${quiz.questions[j]._id}">Edit</a></button>
+                        &nbsp;
+                        <button class="DeleteButton" onclick="removeQuestion('${quiz.questions[j]._id}')">Delete</button>
+                    </div>
+                `;
+            }
+
+            const details = `
+                <p>Name: ${quiz.name}</p>
+                <p>Status: ${quiz.status}</p>
+                <p>Created at: ${(new Date(quiz.createdAt)).toLocaleString()}</p>
+                <p>Last edited at: ${(new Date(quiz.editedAt)).toLocaleString()}</p>
+                
+                <p>Participants: </p>
+                <table>
+                    <thead>
+                        <th></th>
+                        <th>Student name</th>
+                        <th>Matriculation number</th>
+                        <th></th>
+                    </thead>
+                    <tbody>
+                        ${participants}
+                    <tbody>
+                <table>
+                <br/>
+                <label for="newParticipantMatriculationNumber">Add participant: </label>
+                <input id="newParticipantMatriculationNumber" name="newParticipantMatriculationNumber" size="15" maxlength="10" placeholder="Matriculation Number" />
+                &nbsp;
+                <button class="AddQuestionButton" onclick="addParticipant()">Add</button>
+                
+                <p>Questions: </p>
+                <div>
+                    ${questions}    
+                </div>
+                <button class="AddQuestionButton"><a href="/teacher/addQuestion.html?quizName=${quiz.name}">Add Question</a></button>
+            `;
+            document.getElementById('quizDetails').innerHTML = details;
+
+        }).catch(error=>{
+            console.log('Get quiz details error', error);
+
+            if (error.response.status === 400) {
+                alert(error.response.data.message);
+            }
+            else {
+                alert('Cannot get quiz details');
+            }
+        });
+    </script>
+</html>

@@ -1,8 +1,8 @@
 const bcrypt = require('bcrypt');
 
-const administratorModel = require('../DatabaseModels/administratorModel');
+const teacherModel = require('../DatabaseModels/teacherModel');
 
-function administratorLogin (req, res, next) {
+function teacherLogin (req, res, next) {
     const authorization = req.header('Authorization');
     console.log('Authorization header', authorization);
 
@@ -16,13 +16,13 @@ function administratorLogin (req, res, next) {
     const credentials = authorization.split(' ')[1];
     const credentialsDecoded = atob(credentials);
     const [userName, password] = credentialsDecoded.split(':');
-    console.log('user name', userName, 'password', password);
+    console.log('user name (staff number)', userName, 'password', password);
 
-    administratorModel.findOne({userName: userName}).then(result=>{
-        console.log('Found administrator', result);
+    teacherModel.findOne({staffNumber: userName}).then(result=>{
+        console.log('Found teacher', result);
 
         if (result == null) {
-            console.log('Administrator does not exists');
+            console.log('Teacher does not exists');
             res.header('WWW-Authenticate', 'Basic');
             res.sendStatus(401);
             return;
@@ -43,13 +43,14 @@ function administratorLogin (req, res, next) {
             }
 
             console.log('Password match');
-            req.userName = userName;
+            req.staffNumber = userName;
+            req.name = result.name;
             next();
         });
     }).catch(error=>{
-        console.log('Find administrator error', error);
+        console.log('Find teacher error', error);
         res.status(500).send('<h1>Please try again</h1>');
     });
 }
 
-module.exports = administratorLogin;
+module.exports = teacherLogin;

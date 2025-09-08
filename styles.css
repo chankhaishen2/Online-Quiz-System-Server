@@ -86,6 +86,12 @@ input {
     font-size: 25px;
 }
 
+textarea {
+    background-color: #afacab;
+    color: #000000;
+    font-size: 25px;
+}
+
 label {
     font-size: 25px;
 }
@@ -108,11 +114,13 @@ table {
 table th {
     background-color: #A83916;
     color: #FFFFFF;
+    font-size: 25px;
 }
 
 table td {
     background-color: #BA8F62;
     color: #000000;
+    font-size: 25px;
 }
 
 .EditButton {
@@ -122,9 +130,65 @@ table td {
 .EditButton a {
     text-decoration: none;
     color: #FFFFFF;
+    font-size: 20px;
 }
 
 .DeleteButton {
     background-color: #e54444;
     color: #FFFFFF;
+    font-size: 20px;
+}
+
+.ChangeStatusButton {
+    background-color: #52267e;
+    color: #FFFFFF;
+    font-size: 20px;
+}
+
+.ChangeStatusButton a {
+    text-decoration: none;
+    color: #FFFFFF;
+    font-size: 20px;
+}
+
+.ResultsButton {
+    background-color: #756b25;
+}
+
+.ResultsButton a {
+    text-decoration: none;
+    color: #FFFFFF;
+    font-size: 20px;
+}
+
+.AddQuestionButton {
+    background-color: #04a11e;
+    font-size: 25px;
+    color: #FFFFFF;
+}
+
+.AddQuestionButton a {
+    text-decoration: none;
+    color: #FFFFFF;
+    font-size: 25px;
+}
+
+p {
+    font-size: 25px;
+}
+
+span {
+    font-size: 15px;
+}
+
+.QuestionContainer {
+    margin: 10px;
+    padding: 10px;
+    border-radius: 20px;
+    border-color: #000000;
+    background-color: #d6c8b8;
+}
+
+.QuestionText {
+    white-space: pre-line;
 }

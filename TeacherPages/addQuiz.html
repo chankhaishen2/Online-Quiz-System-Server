@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <title>Old Password Not Correct</title>
+        <title>Add Quiz</title>
     </head>
 
     <link rel="stylesheet" href="/styles.css">
@@ -9,20 +9,31 @@
     <body>
         <div id="sideNavigation" class="SideNavigation">
             <a href="javascript:void(0)" class="CloseButton" onclick="closeSideNavigation()">&times;</a>
-            <a href="/administrator/teacherList.html">Teacher List</a>
-            <a href="/administrator/studentList.html">Student List</a>
+            <a href="/teacher/quizList.html">Quiz List</a>
         </div>
 
         <h1 class="Title">Online Quiz System</h1>
 
+        <button class="ChangePasswordButton">
+            <a href="/teacher/changePassword.html">Change Password</a>
+        </button>
+
         <button class="LogoutButton" onclick="logout()">Logout</button>
         <p/>
 
-        <span class="SideNavigationIcon" onclick="openSideNavigation()">&#9776 Old Password Not Correct</span>
+        <span class="SideNavigationIcon" onclick="openSideNavigation()">&#9776 Add Quiz</span>
 
         <hr/>
 
-        <h2 class="BigWord">Old password is not correct.</h2>
+        <form method="post" action="/addquiz" enctype="application/x-www-form-urlencoded">
+            <p/>
+            <label for="name">Name: </label>
+            <br/>
+            <textarea name="name" size="100" cols="50" rows="2" maxlength="100" minlength="1" placeholder="Name" required></textarea>
+            
+            <p/>
+            <input type="submit" value="Add Quiz" class="FormSubmitButton"/>
+        </form>
     </body>
 
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>

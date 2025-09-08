@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <title>Old Password Not Correct</title>
+        <title>Invalid Expiry Date Time</title>
     </head>
 
     <link rel="stylesheet" href="/styles.css">
@@ -9,8 +9,7 @@
     <body>
         <div id="sideNavigation" class="SideNavigation">
             <a href="javascript:void(0)" class="CloseButton" onclick="closeSideNavigation()">&times;</a>
-            <a href="/administrator/teacherList.html">Teacher List</a>
-            <a href="/administrator/studentList.html">Student List</a>
+            <a href="/teacher/quizList.html">Quiz List</a>
         </div>
 
         <h1 class="Title">Online Quiz System</h1>
@@ -18,11 +17,11 @@
         <button class="LogoutButton" onclick="logout()">Logout</button>
         <p/>
 
-        <span class="SideNavigationIcon" onclick="openSideNavigation()">&#9776 Old Password Not Correct</span>
+        <span class="SideNavigationIcon" onclick="openSideNavigation()">&#9776 Invalid Expiry Date Time</span>
 
         <hr/>
 
-        <h2 class="BigWord">Old password is not correct.</h2>
+        <h2 class="BigWord">The expiry date time is earlier than current date time.</h2>
     </body>
 
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>

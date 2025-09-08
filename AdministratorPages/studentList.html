@@ -62,6 +62,7 @@
             document.getElementById('sideNavigation').style.width = '0';
         }
 
+        // Delete student
         function remove(matriculationNumber) {
             console.log('Delete', matriculationNumber);
 
@@ -72,11 +73,11 @@
                 
             }).catch(error=>{
                 console.log('Delete student error', error);
-                alert('Cannot delete the student');
+                alert('Cannot delete the student.');
             });
         }
 
-        // Get list of teachers
+        // Get list of students
         axios.get('http://localhost:5000/students').then(results=>{
             console.log('Get list of students', results);
             const students = results.data.students;

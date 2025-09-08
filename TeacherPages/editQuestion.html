@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Edit Question</title>
+    </head>
+
+    <link rel="stylesheet" href="/styles.css">
+
+    <body>
+        <div id="sideNavigation" class="SideNavigation">
+            <a href="javascript:void(0)" class="CloseButton" onclick="closeSideNavigation()">&times;</a>
+            <a href="/teacher/quizList.html">Quiz List</a>
+        </div>
+
+        <h1 class="Title">Online Quiz System</h1>
+
+        <button class="ChangePasswordButton">
+            <a href="/teacher/changePassword.html">Change Password</a>
+        </button>
+
+        <button class="LogoutButton" onclick="logout()">Logout</button>
+        <p/>
+
+        <span class="SideNavigationIcon" onclick="openSideNavigation()">&#9776 Edit Question</span>
+
+        <hr/>
+
+        <form method="post" action="/editquestion" enctype="multipart/form-data">
+            <label for="question">Question: </label>
+            <br/>
+            <textarea id="question" name="question" placeholder="Question" maxlength="2000" minlength="1" cols="100", rows="10" required></textarea>
+
+            <p/>
+            <label for="choiceA">Choice A: </label>
+            <br/>
+            <textarea id="choiceA" name="choiceA" placeholder="Choice A" maxlength="200" minlength="1" cols="100" rows="2" required></textarea>
+
+            <p/>
+            <label for="choiceB">Choice B: </label>
+            <br/>
+            <textarea id="choiceB" name="choiceB" placeholder="Choice B" maxlength="200" minlength="1" cols="100" rows="2" required></textarea>
+
+            <p/>
+            <label for="choiceC">Choice C: </label>
+            <br/>
+            <textarea id="choiceC" name="choiceC" placeholder="Choice C" maxlength="200" minlength="1" cols="100" rows="2" required></textarea>
+
+            <p/>
+            <label for="choiceD">Choice D: </label>
+            <br/>
+            <textarea id="choiceD" name="choiceD" placeholder="Choice D" maxlength="200" minlength="1" cols="100" rows="2" required></textarea>
+
+            <p/>
+            <label for="correctAnswer">Correct answer:</label>
+            <br/>
+            <input type="radio" name="correctAnswer" id="correctAnswerA" value="A" required />
+            <label for="A">A</label>
+            &nbsp;
+            <input type="radio" name="correctAnswer" id="correctAnswerB" value="B" required />
+            <label for="B">B</label>
+            &nbsp;
+            <input type="radio" name="correctAnswer" id="correctAnswerC" value="C" required />
+            <label for="C">C</label>
+            &nbsp;
+            <input type="radio" name="correctAnswer" id="correctAnswerD" value="D" required />
+            <label for="D">D</label>
+
+            <p/>
+            <label for="explanation">Explanation (optional): </label>
+            <br/>
+            <textarea id="explanation" name="explanation" placeholder="Explanation" maxlength="3000" cols="100" rows="10"></textarea>
+
+            <p/>
+            <label for="handleExistingDiagram">Existing diagram: </label>
+            <br/>
+            <input type="radio" name="handleExistingDiagram" value="retain" required />
+            <label for="retain">Retain</label>
+            &nbsp;
+            <input type="radio" name="handleExistingDiagram" value="replace" required />
+            <label for="replace">Replace</label>
+            &nbsp;
+            <input type="radio" name="handleExistingDiagram" value="remove" required />
+            <label for="remove">Remove</label>
+
+            <p/>
+            <label for="diagram">New / change diagram (optional): </label>
+            <br/>
+            <input type="file" name="diagramFile" accept="image/*" onchange="previewDiagram()" />
+
+            <p/>
+            <img src="" id="diagramPreview" alt="Diagram preview" width="300" height="300"/>
+
+            <input type="hidden" name="quizName" id="quizName" />
+
+            <input type="hidden" name="questionId" id="questionId" />
+
+            <p/>
+            <input type="submit" class="FormSubmitButton" value="Add" />
+        </form>
+    </body>
+
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+    <script>
+        function logout() {
+            axios.delete('/logout').then(response=>{
+                console.log('Logout', response);
+            }).catch(error=>{
+                console.log('Logout', error);
+            });
+        }
+
+        function openSideNavigation() {
+            document.getElementById('sideNavigation').style.width = '250px';
+        }
+
+        function closeSideNavigation() {
+            document.getElementById('sideNavigation').style.width = '0';
+        }
+
+        function previewDiagram() {
+            const diagramFile = event.target.files[0];
+            const diagramPreview = document.getElementById('diagramPreview');
+            const fileReader = new FileReader();
+
+            fileReader.addEventListener(
+                'load',
+                ()=>{
+                    diagramPreview.src = fileReader.result;
+                }
+            );
+
+            if (diagramFile) {
+                fileReader.readAsDataURL(diagramFile);
+            }
+            else {
+                diagramPreview.src = '';
+            }
+
+            console.log(diagramFile);
+        }
+
+        // Assign quiz name field
+        const params = new URLSearchParams(window.location.search);
+        const quizName = params.get('quizName');
+        document.getElementById('quizName').value = quizName;
+
+        // Get question id
+        const questionId = params.get('questionId');
+
+        // Assign question id field
+        document.getElementById('questionId').value = questionId;
+
+        // Get question details
+        axios.get('http://localhost:5000/teacher/questiondetails?quizName=' + quizName + '&questionId=' + questionId).then(response=>{
+            console.log('Get question details', response);
+
+            const question = response.data.question;
+
+            document.getElementById('question').value = question.question;
+            document.getElementById('choiceA').value = question.choiceA;
+            document.getElementById('choiceB').value = question.choiceB;
+            document.getElementById('choiceC').value = question.choiceC;
+            document.getElementById('choiceD').value = question.choiceD;
+
+            if (question.correctAnswer === 'A') {
+                document.getElementById('correctAnswerA').checked = true;
+            }
+            else if (question.correctAnswer === 'B') {
+                document.getElementById('correctAnswerB').checked = true;
+            }
+            else if (question.correctAnswer === 'C') {
+                document.getElementById('correctAnswerC').checked = true;
+            }
+            else {
+                document.getElementById('correctAnswerD').checked = true;
+            }
+            
+            if (question.explanation != null) {
+                document.getElementById('explanation').value = question.explanation;
+            }
+            
+            if (question.diagramFileName != null) {
+                document.getElementById('diagramPreview').src = 'http://localhost:5000/teacher/questionDiagram/' + question.diagramFileName;
+            }
+
+        }).catch(error=>{
+            console.log('Get question details error', error);
+
+            if (error.response.status === 400) {
+                alert(error.response.data.message);
+            }
+            else {
+                alert('Cannot get question details.');
+            }
+        });
+    </script>
+</html>

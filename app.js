@@ -12,7 +12,8 @@ const studentModel = require('./DatabaseModels/studentModel');
 const quizModel = require('./DatabaseModels/quizModel');
 
 const administratorLogin = require('./Login/administratorLogin');
-const { error } = require('console');
+const teacherLogin = require('./Login/teacherLogin');
+const questionDiagramUpload = require('./questionDiagramUpload');
 
 mongoose.connect(process.env.MONGODBURL).then(()=>{
     console.log('Connected to database');
@@ -54,35 +55,78 @@ app.delete('/logout', (req, res)=>{
 });
 
 app.get('/administrator/teacherList.html', administratorLogin, (req, res)=>{
-    res.sendFile(path.join(__dirname, '/AdministratorPages/teacherList.html'));
+    res.status(200).sendFile(path.join(__dirname, '/AdministratorPages/teacherList.html'));
 });
 
 app.get('/administrator/studentList.html', administratorLogin, (req, res)=>{
-    res.sendFile(path.join(__dirname, '/AdministratorPages/studentList.html'));
+    res.status(200).sendFile(path.join(__dirname, '/AdministratorPages/studentList.html'));
 });
 
 app.get('/administrator/changePassword.html', administratorLogin, (req, res)=>{
-    res.sendFile(path.join(__dirname, '/AdministratorPages/changePassword.html'));
+    res.status(200).sendFile(path.join(__dirname, '/AdministratorPages/changePassword.html'));
 });
 
 app.get('/administrator/addTeacher.html', administratorLogin, (req, res)=>{
-    res.sendFile(path.join(__dirname, '/AdministratorPages/addTeacher.html'));
+    res.status(200).sendFile(path.join(__dirname, '/AdministratorPages/addTeacher.html'));
 });
 
 app.get('/administrator/editTeacher.html', administratorLogin, (req, res)=>{
-    res.sendFile(path.join(__dirname, '/AdministratorPages/editTeacher.html'));
+    res.status(200).sendFile(path.join(__dirname, '/AdministratorPages/editTeacher.html'));
 });
 
 app.get('/administrator/addStudent.html', administratorLogin, (req, res)=>{
-    res.sendFile(path.join(__dirname, '/AdministratorPages/addStudent.html'));
+    res.status(200).sendFile(path.join(__dirname, '/AdministratorPages/addStudent.html'));
 });
 
 app.get('/administrator/editStudent.html', administratorLogin, (req, res)=>{
-    res.sendFile(path.join(__dirname, '/AdministratorPages/editStudent.html'));
+    res.status(200).sendFile(path.join(__dirname, '/AdministratorPages/editStudent.html'));
+});
+
+app.get('/teacher/quizList.html', teacherLogin, (req, res)=>{
+    res.status(200).sendFile(path.join(__dirname, '/TeacherPages/quizList.html'));
+});
+
+app.get('/teacher/changePassword.html', teacherLogin, (req, res)=>{
+    res.status(200).sendFile(path.join(__dirname, '/TeacherPages/changePassword.html'));
+});
+
+app.get('/teacher/addQuiz.html', teacherLogin, (req, res)=>{
+    res.status(200).sendFile(path.join(__dirname, '/TeacherPages/addQuiz.html'));
+});
+
+app.get('/teacher/quizDetails.html', teacherLogin, (req, res)=>{
+    res.status(200).sendFile(path.join(__dirname, '/TeacherPages/quizDetails.html'));
+});
+
+app.get('/teacher/addQuestion.html', teacherLogin, (req, res)=>{
+    res.status(200).sendFile(path.join(__dirname, '/TeacherPages/addQuestion.html'));
+});
+
+app.get('/teacher/addQuestionSuccess.html', teacherLogin, (req, res)=>{
+    res.status(200).sendFile(path.join(__dirname, '/TeacherPages/addQuestionSuccess.html'));
+});
+
+// Teacher get question diagram
+app.get('/teacher/questionDiagram/:diagramFileName', teacherLogin, (req, res)=>{
+    const diagramFileName = req.params.diagramFileName;
+    console.log('Teacher get question diagram', 'file name', diagramFileName);
+    res.status(200).sendFile(path.join(__dirname, '/question-diagrams/' + diagramFileName));
+});
+
+app.get('/teacher/editQuestion.html', teacherLogin, (req, res)=>{
+    res.status(200).sendFile(path.join(__dirname, 'TeacherPages/editQuestion.html'));
+});
+
+app.get('/teacher/editQuestionSuccess.html', teacherLogin, (rea, res)=>{
+    res.status(200).sendFile(path.join(__dirname, '/TeacherPages/editQuestionSuccess.html'));
+});
+
+app.get('/teacher/publishQuiz.html', teacherLogin, (req, res)=>{
+    res.status(200).sendFile(path.join(__dirname, '/TeacherPages/publishQuiz.html'));
 });
 
 app.get('/styles.css', (req, res)=>{
-    res.sendFile(path.join(__dirname, '/styles.css'));
+    res.status(200).sendFile(path.join(__dirname, '/styles.css'));
 });
 
 // Administrator change password
@@ -480,11 +524,7 @@ app.use(bodyParser.urlencoded({extended: true})).post('/editstudent', administra
     console.log('Edit student', 'matriculation number', matriculationNumber, 'name', name, 'new password', newPassword);
 
     quizModel.find({
-        participants: {
-            $elemMatch: {
-                matriculationNumber: matriculationNumber
-            }
-        }
+        'participants.matriculationNumber': matriculationNumber
     }).then(results=>{
         console.log('Found quizzes participated by that student', results);
 
@@ -601,6 +641,9 @@ app.delete('/deletestudent', administratorLogin, (req, res)=>{
                     $pull: {
                         participants: {
                             matriculationNumber: matriculationNumber
+                        },
+                        scripts: {
+                            matriculationNumber: matriculationNumber
                         }
                     }
                 }).then(response=>{
@@ -643,18 +686,571 @@ app.delete('/deletestudent', administratorLogin, (req, res)=>{
     });
 });
 
+// Teacher change password
+app.use(bodyParser.urlencoded({extended: true})).post('/teacherchangepassword', teacherLogin, (req, res)=>{
+    const oldPassword = req.body.oldPassword;
+    const newPassword = req.body.newPassword;
+    console.log('Teacher change password', 'old password', oldPassword, 'new password', newPassword);
+
+    teacherModel.findOne({staffNumber: req.staffNumber}).then(result=>{
+        console.log('Found teacher', result);
+
+        bcrypt.compare(oldPassword, result.password, (error, isOldPasswordMatch)=>{
+            if (error != null) {
+                console.log('Compare old password error', error);
+                res.status(500).sendFile(path.join(__dirname, '/TeacherPages/tryAgain.html'));
+                return;
+            }
+
+            if (!isOldPasswordMatch) {
+                console.log('Old password not match');
+                res.status(400).sendFile(path.join(__dirname, '/TeacherPages/oldPasswordNotCorrect.html'));
+                return;
+            }
+
+            bcrypt.hash(newPassword, 10, (error, hash)=>{
+                if (error != null) {
+                    console.log('Hash new password error', error);
+                    res.status(500).sendFile(path.join(__dirname, '/TeacherPages/tryAgain.html'));
+                    return;
+                }
+
+                console.log('hash', hash);
+
+                teacherModel.findOneAndUpdate({staffNumber: req.staffNumber}, {password: hash}).then(response=>{
+                    console.log('Updated teacher', response);
+
+                    res.status(200).sendFile(path.join(__dirname, '/TeacherPages/changePasswordSuccess.html'));
+
+                }).catch(error=>{
+                    console.log('Update password error', error);
+                    res.status(500).sendFile(path.join(__dirname, '/TeacherPages/tryAgain.html'));
+                });
+            });
+        });
+    }).catch(error=>{
+        console.log('Find teacher error', error);
+        res.status(500).sendFile(path.join(__dirname, '/TeacherPages/tryAgain.html'));
+    });
+});
+
+// Teacher get list of quizzes
+app.get('/teacher/quizzes', teacherLogin, (req, res)=>{
+    console.log('Teacher get list of quizzes', 'staff number', req.staffNumber);
+
+    quizModel.aggregate([
+        {
+            $match: {
+                teacherStaffNumber: req.staffNumber
+            },
+        },
+        {
+            $sort: {
+                editedAt: -1    // Sort last edited date in descending order
+            }
+        }
+    ]).then(results=>{
+        console.log('Found quizzes created by that teacher', results);
+
+        const quizzes = [];
+        for (var i = 0; i < results.length; i++) {
+            const quiz = {
+                name: results[i].name,
+                status: results[i].status,
+                teacherStaffNumber: results[i].teacherStaffNumber,
+                teacherName: results[i].teacherName,
+                createdAt: results[i].createdAt,
+                editedAt: results[i].editedAt,
+                expiredAfter: results[i].expiredAfter
+            }
+            quizzes.push(quiz);
+        }
+
+        res.status(200).json({
+            quizzes: quizzes
+        });
+
+    }).catch(error=>{
+        console.log('Find quizzes created by that teacher error', error);
+        res.sendStatus(500);
+    });
+});
+
+// Add quiz
+app.use(bodyParser.urlencoded({extended: true})).post('/addquiz', teacherLogin, (req, res)=>{
+    const staffNumber = req.staffNumber;
+    const teacherName = req.name;
+    const quizName = req.body.name;
+    console.log('Add quiz', quizName, 'staff number', staffNumber, 'teacher name', teacherName);
+
+    quizModel.findOne({name: quizName}).then(result=>{
+        console.log('Found duplicate quiz', result);
+
+        if (result != null) {
+            console.log('Duplicate quiz name');
+            res.status(400).sendFile(path.join(__dirname, '/TeacherPages/duplicateQuizName.html'));
+            return;
+        }
+
+        const newQuiz = new quizModel({
+            name: quizName,
+            teacherStaffNumber: staffNumber,
+            teacherName: teacherName
+        });
+
+        newQuiz.save().then(response=>{
+            console.log('Saved new quiz', response);
+
+            res.status(201).redirect('/teacher/quizDetails.html?name=' + quizName);
+
+        }).catch(error=>{
+            console.log('Save new quiz error', error);
+            res.status(500).sendFile(path.join(__dirname, '/TeacherPages/tryAgain.html'));
+        });
+
+    }).catch(error=>{
+        console.log('Find duplicate quiz error', error);
+        res.status(500).sendFile(path.join(__dirname, '/TeacherPages/tryAgain.html'));
+    });
+});
+
+// Teacher get quiz
+app.get('/teacher/quiz', teacherLogin, (req, res)=>{
+    const quizName = req.query.name;
+    const staffNumber = req.staffNumber;
+    console.log('Teacher get quiz details', 'staff number', staffNumber, 'quiz name', quizName);
+
+    if (quizName == null) {
+        console.log('No quiz specified');
+        res.status(400).json({
+            message: 'There is no quiz name specified.'
+        });
+        return;
+    }
+
+    quizModel.aggregate([
+        {
+            $match: {
+                teacherStaffNumber: staffNumber,
+                name: quizName
+            }
+        },
+        {
+            $project: {
+                name: 1,
+                status: 1,
+                teacherStaffNumber: 1,
+                teacherName: 1,
+                createdAt: 1,
+                editedAt: 1,
+                maximumDurationInMinutes: 1,
+                expiredAfter: 1,
+                participants: {
+                    $sortArray: {
+                        input: '$participants',
+                        sortBy: {
+                            name: 1     // Sort participant name in ascending order
+                        }
+                    }
+                },
+                questions: {
+                    $sortArray: {
+                        input: '$questions',
+                        sortBy: {
+                            createdAt: 1    // Sort by created date time (ascending order)
+                        }
+                    }
+                }
+            }
+        }
+    ]).then(results=>{
+        console.log('Found quiz', results);
+
+        if (results.length === 0) {
+            console.log('Quiz not found');
+            res.status(400).json({
+                message: 'The quiz specified is not available.'
+            });
+            return;
+        }
+        
+        const quiz = results[0];
+        res.status(200).json({
+            quiz: quiz
+        });
+
+    }).catch(error=>{
+        console.log('Find quiz error', error);
+        res.sendStatus(500);
+    });
+});
+
+// Remove a participant from a quiz
+app.delete('/removeparticipant', teacherLogin, (req, res)=>{
+    console.log(req.query);
+    const matriculationNumber = req.query.matriculationNumber;
+    const quizName = req.query.quizName;
+    const staffNumber = req.staffNumber;
+    console.log('Remove participant', 'matriculation number', matriculationNumber, 'quiz name', quizName, 'staff number', staffNumber);
+
+    quizModel.findOneAndUpdate({
+        name: quizName,
+        teacherStaffNumber: staffNumber
+    },{
+        $pull: {
+            participants: {
+                matriculationNumber: matriculationNumber
+            }
+        },
+        editedAt: Date.now()
+    }).then(response=>{
+        console.log('Removed participant', response);
+        res.sendStatus(204);
+
+    }).catch(error=>{
+        console.log('Remove participant error', error);
+        res.sendStatus(500);
+    });
+});
+
+// Add a participant to a quiz
+app.use(bodyParser.json()).post('/addparticipant', teacherLogin, (req, res)=>{
+    const matriculationNumber = req.body.matriculationNumber;
+    const quizName = req.body.quizName;
+    const staffNumber = req.staffNumber;
+    console.log('Add participant', 'matriculation number', matriculationNumber, 'quiz name', quizName, 'staff number', staffNumber);
+
+    studentModel.findOne({matriculationNumber: matriculationNumber}).then(result=>{
+        console.log('Found student', result);
+
+        if (result == null) {
+            console.log('No such student');
+            res.status(400).json({
+                message: 'There is no student with this matriculation number.'
+            });
+            return;
+        }
+
+        const studentName = result.name;
+
+        quizModel.findOneAndUpdate({
+            name: quizName,
+            teacherStaffNumber: staffNumber
+        }, {
+            $push: {
+                participants: {
+                    matriculationNumber: matriculationNumber,
+                    name: studentName
+                }
+            },
+            editedAt: Date.now()
+        }).then(response=>{
+            console.log('Added participant', response);
+
+            res.sendStatus(201);
+
+        }).catch(error=>{
+            console.log('Add participant error', error);
+            res.sendStatus(500);
+        });
+
+    }).catch(error=>{
+        console.log('Find student error', error);
+        res.sendStatus(500);
+    });
+});
+
+// Add question
+app.use(bodyParser.urlencoded({extended: true})).post('/addquestion', teacherLogin, questionDiagramUpload.single('diagramFile'), (req, res)=>{
+    const staffNumber = req.staffNumber;
+    console.log('Add question', 'staff number', staffNumber, 'body', req.body, 'file', req.file);
+
+    quizModel.findOneAndUpdate({
+        name: req.body.quizName,
+        teacherStaffNumber: staffNumber
+    }, {
+        $push: {
+            questions: {
+                question: req.body.question,
+                choiceA: req.body.choiceA,
+                choiceB: req.body.choiceB,
+                choiceC: req.body.choiceC,
+                choiceD: req.body.choiceD,
+                correctAnswer: req.body.correctAnswer,
+                explanation: req.body.explanation,
+                diagramFileName: req?.file?.filename
+            }
+        },
+        editedAt: Date.now()
+    }).then(response=>{
+        console.log('Added question', response);
+
+        res.status(201).redirect('/teacher/addQuestionSuccess.html?quizName=' + req.body.quizName);
+
+    }).catch(error=>{
+        console.log('Add question error', error);
+        res.status(500).sendFile(path.join(__dirname, '/TeacherPages/tryAgain.html'));
+    });
+});
+
+// Delete question
+app.delete('/deletequestion', teacherLogin, (req, res)=>{
+    const quizName = req.query.quizName;
+    const questionId = req.query.questionId;
+    const staffNumber = req.staffNumber;
+    console.log('Delete question', 'id', questionId, 'quiz name', quizName, 'staff number', staffNumber);
+
+    // Check if the question id is a valid object id
+    if (!mongoose.Types.ObjectId.isValid(questionId)) {
+        console.log('Question id not a valid object id');
+
+        res.status(400).json({
+            message: 'The question id is not valid.'
+        });
+        return;
+    }
+
+    quizModel.findOneAndUpdate({
+        name: quizName,
+        teacherStaffNumber: staffNumber
+    }, {
+        $pull: {
+            questions: {
+                _id: questionId
+            }
+        },
+        editedAt: Date.now()
+    }).then(response=>{
+        console.log('Deleted question', response);
+
+        res.sendStatus(204);
+
+    }).catch(error=>{
+        console.log('Delete question error', error);
+        res.sendStatus(500);
+    });
+});
+
+// Teacher get question details
+app.get('/teacher/questiondetails', teacherLogin, (req, res)=>{
+    const quizName = req.query.quizName;
+    const questionId = req.query.questionId;
+    const staffNumber = req.staffNumber;
+    console.log('Teacher get question details', 'id', questionId, 'quiz name', quizName, 'staff number', staffNumber);
+
+    // Check if the question id is a valid object id
+    if (!mongoose.Types.ObjectId.isValid(questionId)) {
+        console.log('Question id not a valid object id');
+
+        res.status(400).json({
+            message: 'The question id is not valid.'
+        });
+        return;
+    }
+
+    quizModel.findOne(
+        {
+            name: quizName,
+            teacherStaffNumber: staffNumber,
+            'questions._id': questionId
+        },
+        {
+            'questions.$': 1
+        }
+    ).then(result=>{
+        console.log('Found question', result);
+
+        if (result == null) {
+            console.log('No such question');
+            res.status(400).json({
+                message: 'The question is not available.'
+            });
+            return;
+        }
+
+        const question = result.questions[0];
+        console.log('Question', question);
+
+        res.status(200).json({
+            question: question
+        });
+
+    }).catch(error=>{
+        console.log('Find question error', error);
+        res.sendStatus(500);
+    });
+});
+
+// Edit question
+app.use(bodyParser.urlencoded({extended: true})).post('/editquestion', teacherLogin, questionDiagramUpload.single('diagramFile'), (req, res)=>{
+    const staffNumber = req.staffNumber;
+    console.log('Edit question', 'staff number', staffNumber, 'body', req.body, 'file', req.file);
+
+    // Check if the question id is a valid object id
+    if (!mongoose.Types.ObjectId.isValid(req.body.questionId)) {
+        console.log('Question id not a valid object id');
+
+        res.status(400).sendFile(path.join(__dirname, '/TeacherPages/questionIdNotValid.html'));
+        return;
+    }
+
+    var editFields = {};
+
+    if (req.body.handleExistingDiagram === 'retain') {
+        editFields = {
+            'questions.$.question': req.body.question,
+            'questions.$.choiceA': req.body.choiceA,
+            'questions.$.choiceB': req.body.choiceB,
+            'questions.$.choiceC': req.body.choiceC,
+            'questions.$.choiceD': req.body.choiceD,
+            'questions.$.correctAnswer': req.body.correctAnswer,
+            'questions.$.explanation': req.body.explanation,
+            'questions.$.editedAt': Date.now()
+        }
+    }
+    else if (req.body.handleExistingDiagram === 'replace') {
+        editFields = {
+            'questions.$.question': req.body.question,
+            'questions.$.choiceA': req.body.choiceA,
+            'questions.$.choiceB': req.body.choiceB,
+            'questions.$.choiceC': req.body.choiceC,
+            'questions.$.choiceD': req.body.choiceD,
+            'questions.$.correctAnswer': req.body.correctAnswer,
+            'questions.$.explanation': req.body.explanation,
+            'questions.$.diagramFileName': req?.file?.filename,
+            'questions.$.editedAt': Date.now()
+        }
+    }
+    else {
+        editFields = {
+            'questions.$.question': req.body.question,
+            'questions.$.choiceA': req.body.choiceA,
+            'questions.$.choiceB': req.body.choiceB,
+            'questions.$.choiceC': req.body.choiceC,
+            'questions.$.choiceD': req.body.choiceD,
+            'questions.$.correctAnswer': req.body.correctAnswer,
+            'questions.$.explanation': req.body.explanation,
+            'questions.$.diagramFileName': null,
+            'questions.$.editedAt': Date.now()
+        }
+    }
+
+    quizModel.findOneAndUpdate({
+        name: req.body.quizName,
+        teacherStaffNumber: staffNumber,
+        'questions._id': req.body.questionId
+    }, 
+    editFields
+    ).then(response=>{
+        console.log('Edited question', response);
+
+        res.status(200).redirect('/teacher/editQuestionSuccess.html?quizName=' + req.body.quizName);
+
+    }).catch(error=>{
+        console.log('Edit question error', error);
+        res.status(500).sendFile(path.join(__dirname, '/TeacherPages/tryAgain.html'));
+    });
+});
+
+// Delete quiz
+app.delete('/deletequiz', teacherLogin, (req, res)=>{
+    const quizName = req.query.name;
+    const staffNumber = req.staffNumber;
+    console.log('Delete quiz', 'name', quizName);
+
+    quizModel.findOneAndDelete({
+        name: quizName,
+        teacherStaffNumber: staffNumber
+    }).then(response=>{
+        console.log('Deleted quiz', response);
+
+        res.sendStatus(204);
+
+    }).catch(error=>{
+        console.log('Delete quiz error', error);
+        res.sendStatus(500);
+    });
+});
+
+// Publish quiz
+app.use(bodyParser.urlencoded({extended: true})).post('/publishquiz', teacherLogin, (req, res)=>{
+    const staffNumber = req.staffNumber;
+    const quizName = req.body.quizName;
+    const hour = req.body.hour;
+    const minute = req.body.minute;
+    const expiredAfter = req.body.expiredAfter;
+    console.log('Publish quiz', 'staff number', staffNumber, 'quiz name', quizName, 'hour', hour, 'minute', minute, 'expired after', expiredAfter);
+
+    const maximumDurationInMinutes = parseInt(hour) * 60 + parseInt(minute);
+    console.log('Maximum duration in minutes', maximumDurationInMinutes);
+
+    const expiryDateTime = new Date(expiredAfter);
+    console.log('Expired after', expiryDateTime.toLocaleString());
+
+    if (expiryDateTime < Date.now()) {
+        console.log('Expiry date time earlier than current date time');
+        res.status(400).sendFile(path.join(__dirname, '/TeacherPages/invalidExpiryDateTime.html'));
+        return;
+    }
+
+    quizModel.findOne({
+        name: quizName,
+        teacherStaffNumber: staffNumber
+    }).then(result=>{
+        console.log('Found quiz', result);
+
+        if (result == null || result.participants.length === 0 || result.questions.length === 0) {
+            console.log('Either no participant or no question');
+            res.status(400).sendFile(path.join(__dirname, '/TeacherPages/quizNoParticipantOrNoQuestion.html'));
+            return;
+        }
+
+        quizModel.findOneAndUpdate({
+            name: quizName,
+            teacherStaffNumber: staffNumber
+        }, {
+            status: 'Published',
+            maximumDurationInMinutes: maximumDurationInMinutes,
+            expiredAfter: expiryDateTime,
+            editedAt: Date.now()
+        }).then(response=>{
+            console.log('Published quiz', response);
+
+            res.status(200).sendFile(path.join(__dirname, '/TeacherPages/publishQuizSuccess.html'));
+
+        }).catch(error=>{
+            console.log('Publish quiz error', error);
+            res.status(500).sendFile(path.join(__dirname, '/TeacherPages/tryAgain.html'));
+        });
+
+    }).catch(error=>{
+        console.log('Find quiz error', error);
+        res.status(500).sendFile(path.join(__dirname, '/TeacherPages/tryAgain.html'));
+    });
+});
+
 // Create quiz
 /*
 const quiz1 = new quizModel({name: 'Quiz 1', teacherStaffNumber: 'staff003', teacherName: 'John'});
 const quiz2 = new quizModel({name: 'Quiz 2', teacherStaffNumber: 'staff003', teacherName: 'John'});
-quiz1.save().then(result=>{console.log(result)}).catch(error=>{console.log(error)});
-quiz2.save().then(result=>{console.log(result)}).catch(error=>{console.log(error)});
+const quiz3 = new quizModel({name: 'Quiz 3', teacherStaffNumber: 'staff003', teacherName: 'John'});
+//quiz1.save().then(result=>{console.log(result)}).catch(error=>{console.log(error)});
+//quiz2.save().then(result=>{console.log(result)}).catch(error=>{console.log(error)});
+quiz3.save().then(result=>{console.log(result)}).catch(error=>{console.log(error)});
 */
 
 // Add student to quiz
 /*
-quizModel.findOneAndUpdate({name: 'Quiz 1'}, {$push: {participants: {matriculationNumber: 'student001', name: 'Danny'}}}).then(result=>{console.log(result)}).catch(error=>{console.log(error)});
-quizModel.findOneAndUpdate({name: 'Quiz 2'}, {$push: {participants: {matriculationNumber: 'student001', name: 'Danny'}}}).then(result=>{console.log(result)}).catch(error=>{console.log(error)});
+quizModel.findOneAndUpdate({name: 'Quiz 1'}, {$push: {participants: {matriculationNumber: 'student001', name: 'Danny'}, scripts: {matriculationNumber: 'student001', name: 'Danny'}}}).then(result=>{console.log(result)}).catch(error=>{console.log(error)});
+quizModel.findOneAndUpdate({name: 'Quiz 2'}, {$push: {participants: {matriculationNumber: 'student001', name: 'Danny'}, scripts: {matriculationNumber: 'student001', name: 'Danny'}}}).then(result=>{console.log(result)}).catch(error=>{console.log(error)});
+quizModel.findOneAndUpdate({name: 'Quiz 3'}, {$push: {participants: {matriculationNumber: 'student001', name: 'Danny'}}}).then(result=>{console.log(result)}).catch(error=>{console.log(error)});
+quizModel.findOneAndUpdate({name: 'Quiz 3'}, {$push: {participants: {matriculationNumber: 'student002', name: 'Dave'}}}).then(result=>{console.log(result)}).catch(error=>{console.log(error)});
+*/
+
+// Change quiz status
+/*
+quizModel.findOneAndUpdate({name: 'Quiz 2'}, {status: 'Published', editedAt: Date.now()}).then(result=>{console.log(result)}).catch(error=>{console.log(error)});
+quizModel.findOneAndUpdate({name: 'Quiz 1'}, {status: 'Results released', editedAt: Date.now()}).then(result=>{console.log(result)}).catch(error=>{console.log(error)});
 */
 
 app.get('/*', (req, res)=>{

@@ -152,7 +152,8 @@ const quizSchema = mongoose.Schema({
     },
     maximumDurationInMinutes: {
         type: Number,
-        min: 1
+        min: 1,
+        max: 180
     },
     expiredAfter: {
         type: Date

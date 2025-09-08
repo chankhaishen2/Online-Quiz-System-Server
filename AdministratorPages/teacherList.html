@@ -62,6 +62,7 @@
             document.getElementById('sideNavigation').style.width = '0';
         }
 
+        // Delete teacher
         function remove(staffNumber) {
             console.log('Delete', staffNumber);
 
@@ -72,7 +73,7 @@
                 
             }).catch(error=>{
                 console.log('Delete teacher error', error);
-                alert('Cannot delete the teacher');
+                alert('Cannot delete the teacher.');
             });
         }
 

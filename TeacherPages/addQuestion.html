@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Add Question</title>
+    </head>
+
+    <link rel="stylesheet" href="/styles.css">
+
+    <body>
+        <div id="sideNavigation" class="SideNavigation">
+            <a href="javascript:void(0)" class="CloseButton" onclick="closeSideNavigation()">&times;</a>
+            <a href="/teacher/quizList.html">Quiz List</a>
+        </div>
+
+        <h1 class="Title">Online Quiz System</h1>
+
+        <button class="ChangePasswordButton">
+            <a href="/teacher/changePassword.html">Change Password</a>
+        </button>
+
+        <button class="LogoutButton" onclick="logout()">Logout</button>
+        <p/>
+
+        <span class="SideNavigationIcon" onclick="openSideNavigation()">&#9776 Add Question</span>
+
+        <hr/>
+
+        <form method="post" action="/addquestion" enctype="multipart/form-data">
+            <label for="question">Question: </label>
+            <br/>
+            <textarea name="question" placeholder="Question" maxlength="2000" minlength="1" cols="100", rows="10" required></textarea>
+
+            <p/>
+            <label for="choiceA">Choice A: </label>
+            <br/>
+            <textarea name="choiceA" placeholder="Choice A" maxlength="200" minlength="1" cols="100" rows="2" required></textarea>
+
+            <p/>
+            <label for="choiceB">Choice B: </label>
+            <br/>
+            <textarea name="choiceB" placeholder="Choice B" maxlength="200" minlength="1" cols="100" rows="2" required></textarea>
+
+            <p/>
+            <label for="choiceC">Choice C: </label>
+            <br/>
+            <textarea name="choiceC" placeholder="Choice C" maxlength="200" minlength="1" cols="100" rows="2" required></textarea>
+
+            <p/>
+            <label for="choiceD">Choice D: </label>
+            <br/>
+            <textarea name="choiceD" placeholder="Choice D" maxlength="200" minlength="1" cols="100" rows="2" required></textarea>
+
+            <p/>
+            <label for="correctAnswer">Correct answer:</label>
+            <br/>
+            <input type="radio" name="correctAnswer" value="A" required />
+            <label for="A">A</label>
+            &nbsp;
+            <input type="radio" name="correctAnswer" value="B" required />
+            <label for="B">B</label>
+            &nbsp;
+            <input type="radio" name="correctAnswer" value="C" required />
+            <label for="C">C</label>
+            &nbsp;
+            <input type="radio" name="correctAnswer" value="D" required />
+            <label for="D">D</label>
+
+            <p/>
+            <label for="explanation">Explanation (optional): </label>
+            <br/>
+            <textarea name="explanation" placeholder="Explanation" maxlength="3000" cols="100" rows="10"></textarea>
+
+            <p/>
+            <label for="diagram">Diagram (optional): </label>
+            <br/>
+            <input type="file" name="diagramFile" accept="image/*" onchange="previewDiagram()" />
+
+            <p/>
+            <img src="" id="diagramPreview" alt="Diagram preview" width="300" height="300"/>
+
+            <input type="hidden" name="quizName" id="quizName" />
+
+            <p/>
+            <input type="submit" class="FormSubmitButton" value="Add" />
+        </form>
+    </body>
+
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+    <script>
+        function logout() {
+            axios.delete('/logout').then(response=>{
+                console.log('Logout', response);
+            }).catch(error=>{
+                console.log('Logout', error);
+            });
+        }
+
+        function openSideNavigation() {
+            document.getElementById('sideNavigation').style.width = '250px';
+        }
+
+        function closeSideNavigation() {
+            document.getElementById('sideNavigation').style.width = '0';
+        }
+
+        function previewDiagram() {
+            const diagramFile = event.target.files[0];
+            const diagramPreview = document.getElementById('diagramPreview');
+            const fileReader = new FileReader();
+
+            fileReader.addEventListener(
+                'load',
+                ()=>{
+                    diagramPreview.src = fileReader.result;
+                }
+            );
+
+            if (diagramFile) {
+                fileReader.readAsDataURL(diagramFile);
+            }
+            else {
+                diagramPreview.src = '';
+            }
+
+            console.log(diagramFile);
+        }
+
+        // Assign quiz name field
+        const params = new URLSearchParams(window.location.search);
+        const quizName = params.get('quizName');
+        document.getElementById('quizName').value = quizName;
+    </script>
+</html>

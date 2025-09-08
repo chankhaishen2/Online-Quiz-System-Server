@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Publish Quiz</title>
+    </head>
+
+    <link rel="stylesheet" href="/styles.css">
+
+    <body>
+        <div id="sideNavigation" class="SideNavigation">
+            <a href="javascript:void(0)" class="CloseButton" onclick="closeSideNavigation()">&times;</a>
+            <a href="/teacher/quizList.html">Quiz List</a>
+        </div>
+
+        <h1 class="Title">Online Quiz System</h1>
+
+        <button class="ChangePasswordButton">
+            <a href="/teacher/changePassword.html">Change Password</a>
+        </button>
+
+        <button class="LogoutButton" onclick="logout()">Logout</button>
+        <p/>
+
+        <span class="SideNavigationIcon" onclick="openSideNavigation()">&#9776 Publish Quiz</span>
+
+        <hr/>
+
+        <form method="post" action="/publishquiz" enctype="application/x-www-form-urlencoded">
+            <p id="name"></p>
+
+            <label for="duration">Maximum duration (no more than 3 hours): </label>
+            <br/>
+            <input type="number" name="hour" min="0" max="3" step="1" value="0" onchange="handleHourChange()" required />
+            <label for="hour"> hour(s) </label>
+            <input type="number" id="minute" name="minute" min="1" max="59" step="1" value="1" required />
+            <label for="minute">minute(s)</label>
+
+            <p/>
+            <label for="expiredAfter">Expiry date time: </label>
+            <br/>
+            <input type="datetime-local" name="expiredAfter" required />
+
+            <input type="hidden" id="quizName" name="quizName" />
+            
+            <p/>
+            <input type="submit" value="Publish" class="FormSubmitButton"/>
+        </form>
+    </body>
+
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+    <script>
+        function logout() {
+            axios.delete('/logout').then(response=>{
+                console.log('Logout', response);
+            }).catch(error=>{
+                console.log('Logout', error);
+            });
+        }
+
+        function openSideNavigation() {
+            document.getElementById('sideNavigation').style.width = '250px';
+        }
+
+        function closeSideNavigation() {
+            document.getElementById('sideNavigation').style.width = '0';
+        }
+
+        function handleHourChange() {
+            const hour = event.target.value;
+            console.log('hour', hour);
+
+            if (hour == 3) {
+                console.log('3 hours');
+                document.getElementById('minute').value = 0;
+                document.getElementById('minute').max = 0;
+            }
+            else if (hour == 0) {
+                console.log('0 hour');
+                document.getElementById('minute').value = 1;
+                document.getElementById('minute').min = 1;
+            }
+            else {
+                console.log('1 or 2 hours');
+                document.getElementById('minute').min = 0;
+                document.getElementById('minute').max = 59;
+            }
+        }
+
+        // Assign quiz name field and quiz details button
+        const params = new URLSearchParams(window.location.search);
+        const name = params.get('name');
+
+        var nameInnerHTML = '';
+        nameInnerHTML += 'Name: ' + name + ' ';
+        nameInnerHTML += '<button class="EditButton"><a href="/teacher/quizDetails.html?name=' + name + '">Details</a></button>';
+
+        document.getElementById('name').innerHTML = nameInnerHTML;
+
+        document.getElementById('quizName').value = name;
+    </script>
+</html>

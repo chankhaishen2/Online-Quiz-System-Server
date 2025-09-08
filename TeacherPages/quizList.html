@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Quiz list</title>
+    </head>
+
+    <link rel="stylesheet" href="/styles.css">
+
+    <body>
+        <div id="sideNavigation" class="SideNavigation">
+            <a href="javascript:void(0)" class="CloseButton" onclick="closeSideNavigation()">&times;</a>
+            <a href="/teacher/quizList.html">Quiz List</a>
+        </div>
+
+        <h1 class="Title">Online Quiz System</h1>
+
+        <button class="ChangePasswordButton">
+            <a href="/teacher/changePassword.html">Change Password</a>
+        </button>
+        <button class="LogoutButton" onclick="logout()">Logout</button>
+        <p/>
+
+        <span class="SideNavigationIcon" onclick="openSideNavigation()">&#9776 Quiz List</span>
+
+        <hr/>
+
+        <button class="AddButton">
+            <a href="/teacher/addQuiz.html">Add Quiz</a>
+        </button>
+
+        <p/>
+
+        <table>
+            <thead>
+                <th></th>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Last Edited At</th>
+                <th>Expired After</th>
+                <th></th>
+                <th></th>
+                <th></th>
+            </thead>
+            <tbody id="quizList"></tbody>
+        </table>
+    </body>
+
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+    <script>
+        function logout() {
+            axios.delete('/logout').then(response=>{
+                console.log('Logout', response);
+            }).catch(error=>{
+                console.log('Logout', error);
+            });
+        }
+
+        function openSideNavigation() {
+            document.getElementById('sideNavigation').style.width = '250px';
+        }
+
+        function closeSideNavigation() {
+            document.getElementById('sideNavigation').style.width = '0';
+        }
+
+        // Delete quiz
+        function remove(name) {
+            console.log('Delete', name);
+
+            axios.delete('http://localhost:5000/deleteQuiz?name=' + name).then(response=>{
+                console.log('Delete quiz', response);
+                alert('The quiz was deleted.');
+                window.location.reload();
+                
+            }).catch(error=>{
+                console.log('Delete quiz error', error);
+                alert('Cannot delete the quiz.');
+            });
+        }
+
+        // Release results
+        function releaseResults(name) {
+            console.log('Release results', name);
+        }
+
+        // Unpublish
+        function unpublish(name) {
+            console.log('Unpublish', name);
+        }
+
+        // Get list of quizzes
+        axios.get('http://localhost:5000/teacher/quizzes').then(results=>{
+            console.log('Get list of quizzes', results);
+            const quizzes = results.data.quizzes;
+
+            var rows = '';
+            for (var i = 0; i < quizzes.length; i++) {
+                if (quizzes[i].status === 'Not published') {
+                    rows += `
+                        <tr>
+                            <td>${i+1}</td>
+                            <td>${quizzes[i].name}</td>
+                            <td>${quizzes[i].status}</td>
+                            <td>${(new Date(quizzes[i].editedAt)).toLocaleString()}</td>
+                            <td>${quizzes[i].expiredAfter == null ? '-': (new Date(quizzes[i].expiredAfter)).toLocaleString()}</td>
+                            <td><button class="EditButton"><a href="/teacher/quizDetails.html?name=${quizzes[i].name}">Details</a></button></td>
+                            <td><button class="DeleteButton" onclick="remove('${quizzes[i].name}')">Delete</button></td>
+                            <td><button class="ChangeStatusButton"><a href="/teacher/publishQuiz.html?name=${quizzes[i].name}">Publish</a></button></td>
+                        </tr>
+                    `;
+                }
+                else if (quizzes[i].status === 'Published') {
+                    rows += `
+                        <tr>
+                            <td>${i+1}</td>
+                            <td>${quizzes[i].name}</td>
+                            <td>${quizzes[i].status}</td>
+                            <td>${(new Date(quizzes[i].editedAt)).toLocaleString()}</td>
+                            <td>${quizzes[i].expiredAfter == null ? '-': (new Date(quizzes[i].expiredAfter)).toLocaleString()}</td>
+                            <td><button class="ResultsButton"><a href="/teacher/quizResults.html?name=${quizzes[i].name}">Results</a></button></td>
+                            <td><button class="ResultsButton"><a href="/teacher/quizResponseByQuestion.html?name=${quizzes[i].name}">Response by Question</a></button></td>
+                            <td><button class="ChangeStatusButton" onclick="releaseResults('${quizzes[i].name}')">Release Results</button></td>
+                        </tr>
+                    `;
+                }
+                else if (quizzes[i].status === 'Results released') {
+                    rows += `
+                        <tr>
+                            <td>${i+1}</td>
+                            <td>${quizzes[i].name}</td>
+                            <td>${quizzes[i].status}</td>
+                            <td>${(new Date(quizzes[i].editedAt)).toLocaleString()}</td>
+                            <td>${quizzes[i].expiredAfter == null ? '-': (new Date(quizzes[i].expiredAfter)).toLocaleString()}</td>
+                            <td><button class="ResultsButton"><a href="/teacher/quizResults.html?name=${quizzes[i].name}">Results</a></button></td>
+                            <td><button class="ResultsButton"><a href="/teacher/quizResponseByQuestion.html?name=${quizzes[i].name}">Response by Question</a></button></td>
+                            <td><button class="ChangeStatusButton" onclick="unpublish('${quizzes[i].name}')">Unpublish</button></td>
+                        </tr>
+                    `;
+                }
+            }
+            document.getElementById('quizList').innerHTML = rows;
+            
+        }).catch(error=>{
+            console.log('Get list of quizzes error', error);
+            alert('Cannot get list of quizzes.');
+        });
+    </script>
+</html>
