@@ -14,6 +14,9 @@ const quizModel = require('./DatabaseModels/quizModel');
 const administratorLogin = require('./Login/administratorLogin');
 const teacherLogin = require('./Login/teacherLogin');
 const questionDiagramUpload = require('./questionDiagramUpload');
+const studentLogin = require('./Login/studentLogin');
+const verifyStudentToken = require('./Login/verifyStudentToken');
+const { error } = require('console');
 
 mongoose.connect(process.env.MONGODBURL).then(()=>{
     console.log('Connected to database');
@@ -123,6 +126,25 @@ app.get('/teacher/editQuestionSuccess.html', teacherLogin, (rea, res)=>{
 
 app.get('/teacher/publishQuiz.html', teacherLogin, (req, res)=>{
     res.status(200).sendFile(path.join(__dirname, '/TeacherPages/publishQuiz.html'));
+});
+
+// Student get question diagram
+app.get('/student/questionDiagram/:diagramFileName', (req, res)=>{
+    const diagramFileName = req.params.diagramFileName;
+    console.log('Student get question diagram', 'file name', diagramFileName);
+    res.status(200).sendFile(path.join(__dirname, '/question-diagrams/' + diagramFileName));
+});
+
+app.get('/teacher/quizResults.html', teacherLogin, (req, res)=>{
+    res.status(200).sendFile(path.join(__dirname, '/TeacherPages/quizResults.html'));
+});
+
+app.get('/teacher/quizScript.html', teacherLogin, (req, res)=>{
+    res.status(200).sendFile(path.join(__dirname, '/TeacherPages/quizScript.html'));
+});
+
+app.get('/teacher/quizResponseByQuestion.html', teacherLogin, (req, res)=>{
+    res.status(200).sendFile(path.join(__dirname, '/TeacherPages/quizResponseByQuestion.html'))
 });
 
 app.get('/styles.css', (req, res)=>{
@@ -820,14 +842,6 @@ app.get('/teacher/quiz', teacherLogin, (req, res)=>{
     const staffNumber = req.staffNumber;
     console.log('Teacher get quiz details', 'staff number', staffNumber, 'quiz name', quizName);
 
-    if (quizName == null) {
-        console.log('No quiz specified');
-        res.status(400).json({
-            message: 'There is no quiz name specified.'
-        });
-        return;
-    }
-
     quizModel.aggregate([
         {
             $match: {
@@ -1207,7 +1221,8 @@ app.use(bodyParser.urlencoded({extended: true})).post('/publishquiz', teacherLog
 
         quizModel.findOneAndUpdate({
             name: quizName,
-            teacherStaffNumber: staffNumber
+            teacherStaffNumber: staffNumber,
+            status: 'Not published'
         }, {
             status: 'Published',
             maximumDurationInMinutes: maximumDurationInMinutes,
@@ -1226,6 +1241,720 @@ app.use(bodyParser.urlencoded({extended: true})).post('/publishquiz', teacherLog
     }).catch(error=>{
         console.log('Find quiz error', error);
         res.status(500).sendFile(path.join(__dirname, '/TeacherPages/tryAgain.html'));
+    });
+});
+
+// Student login
+app.use(express.json()).post('/student/login', (req, res, next)=>{
+    console.log('Student login', req.body, 'matriculationNumber', req.body.matriculationNumber, 'password', req.body.password);
+    
+    req.matriculationNumber = req.body.matriculationNumber;
+    req.password = req.body.password;
+
+    next();
+
+}, studentLogin);
+
+// Student get list of quizzes
+app.get('/student/quizzes', verifyStudentToken, (req, res)=>{
+    console.log('Student get quiz list', req.matriculationNumber);
+
+    quizModel.find({
+        status: {
+            $in: ['Published','Result released']
+        },
+        'participants.matriculationNumber': req.matriculationNumber
+    }).then(results=>{
+        console.log('Found quizzes', results);
+
+        const quizzes = [];
+
+        for (var i = 0; i < results.length; i++) {
+
+            var usedDurationInWords = '0 hours 0 minutes 0 seconds';
+            var mark = 'Not available';
+            var started = false;
+            var answers = [];
+
+            for (var j = 0; j < results[i].scripts.length; j++) {
+
+                if (results[i].scripts[j].matriculationNumber == req.matriculationNumber) {     // The student has started but not necessarily answered the quiz
+                    started = true;
+                }
+                
+                if (results[i].scripts[j].matriculationNumber == req.matriculationNumber && results[i].scripts[j].lastAnsweredAt != null) {     // The student has started answered the quiz
+
+                    // Compute the duration used
+                    const usedDurationInMilliSeconds = results[i].scripts[j].lastAnsweredAt - results[i].scripts[j].startedAt;
+
+                    const usedDurationInSeconds = Math.round(usedDurationInMilliSeconds / 1000);
+                    console.log('Used duration in seconds', usedDurationInSeconds);
+
+                    var durationMinute = Math.floor(usedDurationInSeconds / 60);
+                    const durationSecond = usedDurationInSeconds % 60;
+                    const durationHour = Math.floor(durationMinute / 60);
+                    durationMinute = durationMinute % 60;
+
+                    usedDurationInWords = durationHour.toString() + ' hours ' + durationMinute.toString() + ' minutes ' + durationSecond.toString() + ' seconds';
+
+                    // Get the student's mark and answers (only if status is 'Results released')
+                    if (results[i].status == 'Result released') {
+                        mark = results[i].scripts[j].mark.toString();
+                        answers = results[i].scripts[j].answers;
+                    }
+
+                    break;
+                }
+            }
+
+            // Get questions
+            const questions = [];
+
+            for (var k = 0; k < results[i].questions.length; k++) {
+                var isQuestionAnswered = false;
+
+                if (results[i].status == 'Published') {     // Published
+                    // Give question without answer and explanation
+                    questions.push({
+                        questionId: results[i].questions[k]._id,
+                        question: results[i].questions[k].question,
+                        choiceA: results[i].questions[k].choiceA,
+                        choiceB: results[i].questions[k].choiceB,
+                        choiceC: results[i].questions[k].choiceC,
+                        choiceD: results[i].questions[k].choiceD,
+                        diagramFileName: results[i].questions[k].diagramFileName
+                    });
+                }
+                else {  // Results released
+                    // Get the student's answer for that question and correct answer and explanation
+                    console.log('Answers', answers);
+                    for (var m = 0; m < answers.length; m++) {
+    
+                        if (answers[m].questionId == results[i].questions[k]._id) {
+                            
+                            isQuestionAnswered = true;
+
+                            questions.push({
+                                questionId: results[i].questions[k]._id,
+                                question: results[i].questions[k].question,
+                                choiceA: results[i].questions[k].choiceA,
+                                choiceB: results[i].questions[k].choiceB,
+                                choiceC: results[i].questions[k].choiceC,
+                                choiceD: results[i].questions[k].choiceD,
+                                diagramFileName: results[i].questions[k].diagramFileName,
+                                choice: answers[m].choice,
+                                correctAnswer: results[i].questions[k].correctAnswer,
+                                explanation: results[i].questions[k].explanation == null ? '' : results[i].questions[k].explanation,
+                            });
+
+                            break;
+                        }
+                    }
+                }
+
+                if (results[i].status == 'Result released' && !isQuestionAnswered) {   // if the results is released and the student did not answer this question
+                    questions.push({
+                        questionId: results[i].questions[k]._id,
+                        question: results[i].questions[k].question,
+                        choiceA: results[i].questions[k].choiceA,
+                        choiceB: results[i].questions[k].choiceB,
+                        choiceC: results[i].questions[k].choiceC,
+                        choiceD: results[i].questions[k].choiceD,
+                        diagramFileName: results[i].questions[k].diagramFileName,
+                        correctAnswer: results[i].questions[k].correctAnswer,
+                        explanation: results[i].questions[k].explanation == null ? '' : results[i].questions[k].explanation,
+                    });
+                }
+            }
+            console.log('Questions', questions);
+
+            // Compute maximum duration
+            var maximumDurationInWords = '';
+
+            if (results[i].status == 'Result released') {
+                maximumDurationInWords = 'Not available';
+            }
+            else {
+                var maximumDurationMinute = results[i].maximumDurationInMinutes;
+                const maximumDurationHour = Math.floor(maximumDurationMinute / 60);
+                maximumDurationMinute = maximumDurationMinute % 60;
+
+                maximumDurationInWords = maximumDurationHour.toString() + ' hours ' + maximumDurationMinute.toString() + ' minutes';
+            }
+            
+            // Compute canStart
+            var canStart = results[i].status == 'Published' && results[i].questions.length > 0 && results[i].expiredAfter > Date.now() && !started;
+
+            quizzes.push({
+                name: results[i].name,
+                status: results[i].status,
+                teacherName: results[i].teacherName,
+                maximumDurationInWords: maximumDurationInWords,
+                maximumDurationInMinutes: results[i].maximumDurationInMinutes,
+                expiredAfterInWords: results[i].status == 'Result released' ? 'Not available' : results[i].expiredAfter.toLocaleString(),
+                usedDurationInWords: usedDurationInWords,
+                mark: mark,
+                questions: questions,
+                canStart: canStart
+            });
+        }
+        
+        console.log('Quizzes', quizzes);
+
+        res.status(200).json({
+            quizzes: quizzes
+        });
+
+    }).catch(error=>{
+        console.log('Find quizzes error', error);
+        res.sendStatus(500);
+    });
+});
+
+app.use(express.json()).post('/student/startquiz', verifyStudentToken, (req, res)=>{
+    const matriculationNumber = req.matriculationNumber;
+    const name = req.name;
+    const quizName = req.body.quizName;
+    console.log('Start quiz', 'matriculation number', matriculationNumber, 'name', name, 'quiz name', quizName);
+
+    quizModel.findOne({
+        name: quizName,
+        status: 'Published',
+        'participants.matriculationNumber': matriculationNumber
+    }).then(result=>{
+        console.log('Found quiz', result);
+
+        if (result == null) {
+            console.log('Quiz not found: either quiz name is wrong, quiz status is not "Published" or student is not a participant of this quiz');
+            res.status(400).json({
+                message: 'You are not allowed to answer this quiz.'
+            });
+            return;
+        }
+
+        // Check whether the student has started the quiz before (not allowed to start more than once)
+        for (var i = 0; i < result.scripts.length; i++) {
+            if (result.scripts[i].matriculationNumber == matriculationNumber) {
+                console.log('Student already started quiz before');
+                res.status(400).json({
+                    message: 'You are not allowed to start the quiz for the second time.'
+                });
+                return;
+            }
+        }
+
+        // Check whether the quiz is expired
+        if (Date.now() > result.expiredAfter) {
+            console.log('Quiz expired');
+            res.status(400).json({
+                message: 'The quiz was expired.'
+            });
+            return;
+        }
+
+        quizModel.findOneAndUpdate({
+            name: quizName,
+            status: 'Published',
+            'participants.matriculationNumber': matriculationNumber
+        }, {
+            $push: {
+                scripts: {
+                    matriculationNumber: matriculationNumber,
+                    name: name
+                }
+            }
+        }).then(response=>{
+            console.log('Added script', response);
+
+            res.sendStatus(201);
+
+        }).catch(error=>{
+            console.log('Add script error', error);
+            res.sendStatus(500);
+        });
+
+    }).catch(error=>{
+        console.log('Find quiz error', error);
+        res.sendStatus(500);
+    });
+});
+
+app.use(express.json()).post('/student/answerquestion', verifyStudentToken, (req, res)=>{
+    const matriculationNumber = req.matriculationNumber;
+    const quizName = req.body.quizName;
+    const questionId = req.body.questionId;
+    const choice = req.body.choice;
+    console.log('Answer question', 'matriculation number', matriculationNumber, 'quiz name', quizName, 'question id', questionId, 'choice', choice);
+
+    // Check whether the question Id is valid
+    if (!mongoose.Types.ObjectId.isValid(questionId)) {
+        console.log('Question id not a valid object Id');
+        res.status(400).json({
+            message: 'The question Id is not valid.'
+        });
+        return;
+    }
+
+    // Check whether choice is A, B, C or D
+    if (choice != 'A' && choice != 'B' && choice != 'C' && choice != 'D') {
+        console.log('Choice not "A", "B", "C" or "D"');
+        res.status(400).json({
+            message: 'The choice should be "A", "B", "C" or "D" only.'
+        });
+        return;
+    }
+
+    quizModel.findOne({
+        name: quizName,
+        status: 'Published',
+        'participants.matriculationNumber': matriculationNumber,
+        'scripts.matriculationNumber': matriculationNumber,
+        'questions._id': questionId
+    }, {
+        'scripts.$': 1,
+        questions: 1,
+        expiredAfter: 1,
+        maximumDurationInMinutes: 1
+    }).then(result=>{
+        console.log('Found quiz', result);
+
+        if (result == null) {
+            console.log('Quiz not found: either quiz name is wrong, quiz status is not "Published", student is not a participant of this quiz, student did not start the quiz yet or the question Id is wrong');
+            res.status(400).json({
+                message: 'You are not allowed to answer this question.'
+            });
+            return;
+        }
+
+        // Check whether the quiz is expired
+        if (Date.now() > result.expiredAfter) {
+            console.log('Quiz expired');
+            res.status(400).json({
+                message: 'The quiz is expired.'
+            });
+            return;
+        }
+
+        const script = result.scripts[0];
+
+        // Get question
+        var question = {};
+        for (var j = 0; j < result.questions.length; j++) {
+            if (result.questions[j]._id == questionId) {
+                question = result.questions[j];
+                break;
+            }
+        }
+
+        // Check whether exceed the maximum duration
+        const maximumDurationInMilliseconds = result.maximumDurationInMinutes * 60000;
+        const diferenceOfStartTimeAndNowInMilliseconds = Date.now() - script.startedAt
+        console.log(diferenceOfStartTimeAndNowInMilliseconds, maximumDurationInMilliseconds);
+        if (diferenceOfStartTimeAndNowInMilliseconds > maximumDurationInMilliseconds) {
+            console.log('Exceed maximum duration');
+            res.status(400).json({
+                message: 'The maximum duration is exceeded.'
+            });
+            return;
+        }
+
+        var newMark = script.mark;
+        console.log(newMark);
+        const promises = [];
+        var isAnsweredBefore = false;
+
+        // Check whether the question is answered before
+        for (var i = 0; i < script.answers.length; i++) {
+            
+            if (script.answers[i].questionId == questionId) {   // if the question is answered before
+                
+                isAnsweredBefore = true;
+
+                // Compute new mark
+                console.log(question.correctAnswer, choice, script.answers[i].choice);
+                if (choice != script.answers[i].choice) {   // if the answer is changed
+                    if (script.answers[i].choice == question.correctAnswer) {   // if the previous answer is correct
+                        newMark -= 1;
+                        console.log(newMark);
+                    }
+                    else if (choice == question.correctAnswer) {    // if the current answer is correct, while the previous answer is not correct
+                        newMark += 1;
+                        console.log(newMark);
+                    }
+                    // if the current answer is not correct while the previous answer is also not correct, the mark is not changed
+                }
+                // if the answer is not changed, the mark is not changed
+
+                promises.push(new Promise((resolve, reject)=>{
+                    quizModel.findOneAndUpdate({
+                        name: quizName,
+                        status: 'Published',
+                        'participants.matriculationNumber': matriculationNumber,
+                        'scripts.matriculationNumber': matriculationNumber
+                    }, {
+                        $pull: {
+                            'scripts.$.answers': {
+                                questionId: questionId
+                            }
+                        }
+                    }).then(response=>{
+                        console.log('Removed answer', response);
+
+                        quizModel.findOneAndUpdate({
+                            name: quizName,
+                            status: 'Published',
+                            'participants.matriculationNumber': matriculationNumber,
+                            'scripts.matriculationNumber': matriculationNumber
+                        }, {
+                            'scripts.$.mark': newMark,
+                            'scripts.$.lastAnsweredAt': Date.now(),
+                            $push: {
+                                'scripts.$.answers': {
+                                    questionId: questionId,
+                                    choice: choice
+                                }
+                            }
+                        }).then(result=>{
+                            console.log('Updated answer and mark', result);
+                            resolve();
+
+                        }).catch(error=>{
+                            console.log('Update answer and mark error', error);
+                            reject();
+                        });
+
+                    }).catch(error=>{
+                        console.log('Remove answer error', error);
+                        reject();
+                    });
+                }));
+
+                break;
+            }
+        }
+
+        if (!isAnsweredBefore) {    // if the question is not answered before
+            
+            console.log(choice, question.correctAnswer);
+            if (choice == question.correctAnswer) {     // if the answer is correct
+                newMark += 1;
+                console.log(newMark);
+            }
+            // if the answer is not correct, the mark is not changed
+
+            promises.push(new Promise((resolve, reject)=>{
+                quizModel.findOneAndUpdate({
+                    name: quizName,
+                    status: 'Published',
+                    'participants.matriculationNumber': matriculationNumber,
+                    'scripts.matriculationNumber': matriculationNumber
+                }, {
+                    $push: {
+                        'scripts.$.answers': {
+                            questionId: questionId,
+                            choice: choice
+                        }
+                    },
+                    'scripts.$.mark': newMark,
+                    'scripts.$.lastAnsweredAt': Date.now()
+                }).then(response=>{
+                    console.log('Updated mark and answer', response);
+                    resolve();
+
+                }).catch(error=>{
+                    console.log('Update mark and answer error', error);
+                    reject();
+                });
+            }));
+        }
+
+        // Update the answer and mark
+        Promise.all(promises).then(()=>{
+            console.log('Updated answer and mark');
+
+            res.sendStatus(201);
+
+        }).catch(error=>{
+            console.log('Update answer and mark error', error);
+            res.sendStatus(500);
+        });
+
+    }).catch(error=>{
+        console.log('Find script error', error);
+        res.sendStatus(500);
+    })
+});
+
+// Teacher get quiz results
+app.get('/teacher/quizresults', teacherLogin, (req, res)=>{
+    const quizName = req.query.name;
+    const staffNumber = req.staffNumber;
+    console.log('Teacher get quiz results', 'staff number', staffNumber, 'quiz name', quizName);
+
+    quizModel.aggregate([
+        {
+            $match: {
+                teacherStaffNumber: staffNumber,
+                name: quizName,
+                status: {
+                    $in: [
+                        'Published',
+                        'Result released'
+                    ]
+                }
+            }
+        },
+        {
+            $project: {
+                name: 1,
+                status: 1,
+                teacherStaffNumber: 1,
+                teacherName: 1,
+                createdAt: 1,
+                editedAt: 1,
+                maximumDurationInMinutes: 1,
+                expiredAfter: 1,
+                participants: {
+                    $sortArray: {
+                        input: '$participants',
+                        sortBy: {
+                            name: 1     // Sort participant name in ascending order
+                        }
+                    }
+                },
+                scripts: 1
+            }
+        }
+    ]).then(results=>{
+        console.log('Found quiz', results);
+
+        if (results.length === 0) {
+            console.log('Quiz not found');
+            res.status(400).json({
+                message: 'Either the quiz specified is not available or not in "Publised" or "Result released" status.'
+            });
+            return;
+        }
+        
+        const quiz = results[0];
+        res.status(200).json({
+            quiz: quiz
+        });
+
+    }).catch(error=>{
+        console.log('Find quiz error', error);
+        res.sendStatus(500);
+    });
+});
+
+// Teacher get script for a student
+app.get('/teacher/quizscript', teacherLogin, (req, res)=>{
+    const quizName = req.query.quizName;
+    const staffNumber = req.staffNumber;
+    const matriculationNumber = req.query.matriculationNumber;
+    console.log('Teacher get quiz script', 'staff number', staffNumber, 'quiz name', quizName, 'matriculation number', matriculationNumber);
+
+    quizModel.aggregate([
+        {
+            $match: {
+                teacherStaffNumber: staffNumber,
+                name: quizName,
+                status: {
+                    $in: [
+                        'Published',
+                        'Result released'
+                    ]
+                }
+            }
+        },
+        {
+            $project: {
+                name: 1,
+                status: 1,
+                teacherStaffNumber: 1,
+                teacherName: 1,
+                questions: {
+                    $sortArray: {
+                        input: '$questions',
+                        sortBy: {
+                            createdAt: 1
+                        }
+                    }
+                },
+                scripts: {
+                    $filter: {
+                        input: '$scripts',
+                        as: 'script',
+                        cond: {
+                            $eq: ['$$script.matriculationNumber', matriculationNumber]
+                        }
+                    }
+                }
+            }
+        }
+    ]).then(results=>{
+        console.log('Found quiz script', results);
+
+        if (results.length === 0) {
+            console.log('Quiz script not found');
+            res.status(400).json({
+                message: 'Either the quiz specified is not available or not in "Publised" or "Result released" status.'
+            });
+            return;
+        }
+        
+        const quiz = results[0];
+        res.status(200).json({
+            quiz: quiz
+        });
+
+    }).catch(error=>{
+        console.log('Find quiz script error', error);
+        res.sendStatus(500);
+    });
+});
+
+// Teacher get response count by question for a quiz
+app.get('/teacher/quizresponsebyquestion', teacherLogin, (req, res)=>{
+    const quizName = req.query.quizName;
+    const staffNumber = req.staffNumber;
+    console.log('Teacher get quiz response by question', 'staff number', staffNumber, 'quiz name', quizName);
+
+    quizModel.findOne({
+        name: quizName,
+        teacherStaffNumber: staffNumber,
+        status: {
+            $in: ['Published', 'Result released']
+        }
+    }).then(result=>{
+        console.log('Found quiz', result);
+
+        if (result == null) {
+            console.log('Quiz not found');
+            res.status(400).json({
+                message: 'Either the quiz specified is not available or not in "Publised" or "Result released" status.'
+            });
+            return;
+        }
+        
+        const quiz = result;
+        const questions = [];
+
+        for (var i = 0; i < quiz.questions.length; i++) {
+            var countA = 0;
+            var countB = 0;
+            var countC = 0;
+            var countD = 0;
+
+            for (var j = 0; j < quiz.scripts.length; j++) {
+                const script = quiz.scripts[j];
+                console.log(script.answers);
+
+                for (var k = 0; k < script.answers.length; k++) {
+                    console.log(script.answers[k]);
+                
+                    if (script.answers[k].questionId == quiz.questions[i]._id) {
+
+                        if (script.answers[k].choice == 'A') {
+                            countA += 1;
+                        }
+                        else if (script.answers[k].choice == 'B') {
+                            countB += 1;
+                        }
+                        else if (script.answers[k].choice == 'C') {
+                            countC += 1;
+                        }
+                        else {
+                            countD += 1;
+                        }
+
+                        break;
+                    }
+                }
+            }
+
+            questions.push({
+                _id: quiz.questions[i]._id,
+                question: quiz.questions[i].question,
+                choiceA: quiz.questions[i].choiceA,
+                choiceB: quiz.questions[i].choiceB,
+                choiceC: quiz.questions[i].choiceC,
+                choiceD: quiz.questions[i].choiceD,
+                correctAnswer: quiz.questions[i].correctAnswer,
+                diagramFileName: quiz.questions[i].diagramFileName,
+                createdAt: quiz.questions[i].createdAt,
+                countA: countA,
+                countB: countB,
+                countC: countC,
+                countD: countD
+            });
+        }
+
+        res.status(200).json({
+            quiz: {
+                name: quiz.name,
+                status: quiz.status,
+                teacherStaffNumber: quiz.teacherStaffNumber,
+                teacherName: quiz.teacherName,
+                questions: questions
+            }
+        });
+
+    }).catch(error=>{
+        console.log('Find quiz error', error);
+        res.sendStatus(500);
+    });
+});
+
+// Teacher release results of a quiz
+app.use(bodyParser.urlencoded({extended: true})).post('/teacher/releaseresults', teacherLogin, (req, res)=>{
+    const quizName = req.body.quizName;
+    const teacherStaffNumber = req.staffNumber;
+    console.log('Release results', 'quiz name', quizName, 'teacher staff number', teacherStaffNumber);
+
+    quizModel.findOneAndUpdate({
+        name: quizName,
+        teacherStaffNumber: teacherStaffNumber,
+        status: 'Published'
+    }, {
+        status: 'Result released',
+        maximumDurationInMinutes: null,
+        expiredAfter: null,
+        editedAt: Date.now()
+    }).then(response=>{
+        console.log('Released results', response);
+        
+        res.sendStatus(201);
+
+    }).catch(error=>{
+        console.log('Release results error', error);
+        res.sendStatus(500);
+    });
+});
+
+// Teacher unpublish a quiz
+app.use(bodyParser.urlencoded({extended: true})).post('/teacher/unpublish', teacherLogin, (req, res)=>{
+    const quizName = req.body.quizName;
+    const teacherStaffNumber = req.staffNumber;
+    console.log('Release results', 'quiz name', quizName, 'teacher staff number', teacherStaffNumber);
+
+    quizModel.findOneAndUpdate({
+        name: quizName,
+        teacherStaffNumber: teacherStaffNumber,
+        status: 'Result released'
+    }, {
+        status: 'Not published',
+        participants: [],
+        scripts: [],
+        editedAt: Date.now()
+    }).then(response=>{
+        console.log('Released results', response);
+        
+        res.sendStatus(201);
+
+    }).catch(error=>{
+        console.log('Release results error', error);
+        res.sendStatus(500);
     });
 });
 
@@ -1251,6 +1980,113 @@ quizModel.findOneAndUpdate({name: 'Quiz 3'}, {$push: {participants: {matriculati
 /*
 quizModel.findOneAndUpdate({name: 'Quiz 2'}, {status: 'Published', editedAt: Date.now()}).then(result=>{console.log(result)}).catch(error=>{console.log(error)});
 quizModel.findOneAndUpdate({name: 'Quiz 1'}, {status: 'Results released', editedAt: Date.now()}).then(result=>{console.log(result)}).catch(error=>{console.log(error)});
+*/
+
+// Start quiz
+/*
+quizModel.findOneAndUpdate({
+    name: 'Geography Pop Quiz'
+}, {
+    $push: {
+        scripts: {
+            matriculationNumber: 'student001',
+            name: 'Dove'
+        }
+    }
+}).then(response=>{
+    console.log(response);
+}).catch(error=>{
+    console.log(error);
+});
+*/
+
+// Edit expiry date time
+/*
+quizModel.findOneAndUpdate({
+    name: 'Geography Pop Quiz'
+}, {
+    expiredAfter: new Date('2025-10-31')
+}).then(response=>{
+    console.log(response);
+}).catch(error=>{
+    console.log(error);
+});
+*/
+
+// Edit maximum duration
+/*
+quizModel.findOneAndUpdate({
+    name: 'Geography Pop Quiz'
+}, {
+    maximumDurationInMinutes: 180
+}).then(response=>{
+    console.log(response);
+}).catch(error=>{
+    console.log(error);
+});
+*/
+
+// Delete answer
+/*
+quizModel.findOneAndUpdate({
+    name: 'Geography Pop Quiz',
+    'scripts.matriculationNumber': 'student001'
+}, {
+    $pull: {
+        'scripts.$.answers': {
+            questionId: '68de367155aa63f319b7be75'
+        }
+    }
+}).then(response=>{
+    console.log(response);
+}).catch(error=>{
+    console.log(error);
+});
+*/
+
+// Edit start date time
+/*
+quizModel.findOneAndUpdate({
+    name: 'Geography Pop Quiz',
+    'scripts.matriculationNumber': 'student001'
+}, {
+    'scripts.$.startedAt': new Date('2025-10-03T13:30:00')
+}).then(response=>{
+    console.log(response);
+}).catch(error=>{
+    console.log(error);
+});
+*/
+
+// Delete script
+/*
+quizModel.findOneAndUpdate({
+    name: 'Geography Pop Quiz'
+}, {
+    $pull: {
+        'scripts': {
+            matriculationNumber: 'student001'
+        }
+    }
+}).then(response=>{
+    console.log(response);
+}).catch(error=>{
+    console.log(error);
+});
+
+quizModel.findOneAndUpdate({
+    name: 'Geography Pop Quiz 2'
+}, {
+    $pull: {
+        'scripts': {
+            matriculationNumber: 'student001'
+        }
+    }
+}).then(response=>{
+    console.log(response);
+}).catch(error=>{
+    console.log(error);
+});
 */
 
 app.get('/*', (req, res)=>{

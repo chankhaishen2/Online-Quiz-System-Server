@@ -82,11 +82,43 @@
         // Release results
         function releaseResults(name) {
             console.log('Release results', name);
+
+            axios.post('http://localhost:5000/teacher/releaseresults', {
+                quizName: name
+            }, {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                }
+            }).then(response=>{
+                console.log('Results released', response);
+                alert('The results of the quiz are released.');
+                window.location.reload();
+
+            }).catch(error=>{
+                console.log('Release result error', error);
+                alert('Cannot release results.');
+            });
         }
 
         // Unpublish
         function unpublish(name) {
             console.log('Unpublish', name);
+
+            axios.post('http://localhost:5000/teacher/unpublish', {
+                quizName: name
+            }, {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                }
+            }).then(response=>{
+                console.log('Unpublished', response);
+                alert('The quiz is unpublished.');
+                window.location.reload();
+
+            }).catch(error=>{
+                console.log('Unpublish error', error);
+                alert('Cannot unpublish quiz.');
+            });
         }
 
         // Get list of quizzes
@@ -124,7 +156,7 @@
                         </tr>
                     `;
                 }
-                else if (quizzes[i].status === 'Results released') {
+                else if (quizzes[i].status === 'Result released') {
                     rows += `
                         <tr>
                             <td>${i+1}</td>

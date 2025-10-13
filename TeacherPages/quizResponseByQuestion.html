@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Quiz Response by Question</title>
+    </head>
+
+    <link rel="stylesheet" href="/styles.css">
+
+    <body>
+        <div id="sideNavigation" class="SideNavigation">
+            <a href="javascript:void(0)" class="CloseButton" onclick="closeSideNavigation()">&times;</a>
+            <a href="/teacher/quizList.html">Quiz List</a>
+        </div>
+
+        <h1 class="Title">Online Quiz System</h1>
+
+        <button class="ChangePasswordButton">
+            <a href="/teacher/changePassword.html">Change Password</a>
+        </button>
+
+        <button class="LogoutButton" onclick="logout()">Logout</button>
+        <p/>
+
+        <span class="SideNavigationIcon" onclick="openSideNavigation()">&#9776 Quiz Response by Question</span>
+
+        <hr/>
+
+        <div id="quizResponseByQuestion"></div>
+    </body>
+
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        function logout() {
+            axios.delete('/logout').then(response=>{
+                console.log('Logout', response);
+            }).catch(error=>{
+                console.log('Logout', error);
+            });
+        }
+
+        function openSideNavigation() {
+            document.getElementById('sideNavigation').style.width = '250px';
+        }
+
+        function closeSideNavigation() {
+            document.getElementById('sideNavigation').style.width = '0';
+        }
+
+        // Get quiz response by question
+        const params = new URLSearchParams(window.location.search);
+        const quizName = params.get('name');
+
+        axios.get('http://localhost:5000/teacher/quizresponsebyquestion?quizName=' + quizName).then(result=>{
+            console.log('Get quiz response', result);
+            
+            const quiz = result.data.quiz;
+
+            var questionsAndResponses = '';
+            for (var i = 0; i < quiz?.questions.length; i++) {
+                
+                questionsAndResponses += `
+                    <div class="QuestionContainer">
+                        ${quiz.questions[i]?.diagramFileName == null ? '' : `<img alt="Question Diagram" width="300" height="300" src="http://localhost:5000/teacher/questionDiagram/${quiz.questions[i].diagramFileName}" />`}
+                        <p class="QuestionText">${i+1}. ${quiz.questions[i].question}</p>
+                        <p> A. ${quiz.questions[i].choiceA}</p>
+                        <p> B. ${quiz.questions[i].choiceB}</p>
+                        <p> C. ${quiz.questions[i].choiceC}</p>
+                        <p> D. ${quiz.questions[i].choiceD}</p>
+                        <canvas id="chartOf${quiz.questions[i]._id}" ></canvas>
+                        <span>Correct answer: ${quiz.questions[i].correctAnswer}</span>
+                    </div>
+                 `;
+            }
+
+            const quizResponse = `
+                <p>Quiz name: ${quiz.name}</p>
+                <p>Status: ${quiz.status}</p>
+                
+                <p>Response based on question: </p>
+                ${questionsAndResponses}
+            `;
+            document.getElementById('quizResponseByQuestion').innerHTML = quizResponse;
+
+            // Generate bar chart for responses for each question
+            for (var j = 0; j < quiz.questions.length; j++) {
+                const context = document.getElementById('chartOf' + quiz.questions[j]._id);
+
+                new Chart(
+                    context,
+                    {
+                        type: 'bar',
+                        data: {
+                            labels: ['A', 'B', 'C', 'D'],
+                            datasets: [
+                                {
+                                    label: 'Number of responses',
+                                    data: [
+                                        quiz.questions[j].countA,
+                                        quiz.questions[j].countB,
+                                        quiz.questions[j].countC,
+                                        quiz.questions[j].countD
+                                    ],
+                                    borderWidth: 1
+                                }
+                            ]
+                        },
+                        options: {
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    }
+                );
+            }
+
+        }).catch(error=>{
+            console.log('Get quiz response error', error);
+
+            if (error.response?.status === 400) {
+                alert(error.response.data.message);
+            }
+            else {
+                alert('Cannot get quiz response');
+            }
+        });
+    </script>
+</html>

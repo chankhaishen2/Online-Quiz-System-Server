@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Quiz Results</title>
+    </head>
+
+    <link rel="stylesheet" href="/styles.css">
+
+    <body>
+        <div id="sideNavigation" class="SideNavigation">
+            <a href="javascript:void(0)" class="CloseButton" onclick="closeSideNavigation()">&times;</a>
+            <a href="/teacher/quizList.html">Quiz List</a>
+        </div>
+
+        <h1 class="Title">Online Quiz System</h1>
+
+        <button class="ChangePasswordButton">
+            <a href="/teacher/changePassword.html">Change Password</a>
+        </button>
+
+        <button class="LogoutButton" onclick="logout()">Logout</button>
+        <p/>
+
+        <span class="SideNavigationIcon" onclick="openSideNavigation()">&#9776 Quiz Results</span>
+
+        <hr/>
+
+        <div id="quizResults"></div>
+    </body>
+
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+    <script>
+        function logout() {
+            axios.delete('/logout').then(response=>{
+                console.log('Logout', response);
+            }).catch(error=>{
+                console.log('Logout', error);
+            });
+        }
+
+        function openSideNavigation() {
+            document.getElementById('sideNavigation').style.width = '250px';
+        }
+
+        function closeSideNavigation() {
+            document.getElementById('sideNavigation').style.width = '0';
+        }
+
+        function downloadQuizResults(quizName) {
+            // Generate comma separated value (CSV) file from quiz results table
+            const tbodys = document.getElementById('quizResultsTableBody');
+            console.log(tbodys);
+            const rows = tbodys.getElementsByTagName('tr');
+            console.log(rows);
+
+            const allContents = [];
+
+            const headContents = ['Name', 'Matriculation number', 'Mark', 'Number of questions answered', 'Started at', 'Last answered at'];
+            allContents.push(headContents.join(','));
+
+            for (var i = 0; i < rows.length; i++) {
+                const columns = rows[i].querySelectorAll('td');
+                console.log('columns', columns);
+
+                const rowContents = [];
+
+                for (var j = 1; j < columns.length - 1; j++) {  // Skip the first and last column
+                    const content = columns[j].innerHTML;
+                    rowContents.push(content);
+                }
+
+                console.log('row', i, 'rowContents', rowContents);
+                allContents.push(rowContents.join(','));
+                console.log('allContents', allContents);
+            }
+
+            console.log('allContents', allContents);
+
+            const csvContents = allContents.join('\n');
+            console.log('csvContents', csvContents);
+
+            const file = new Blob([csvContents], {type: 'text/csv'});
+
+            // Download the CSV file
+            const temporaryLink = document.createElement('a');  // Create a link
+            temporaryLink.download = quizName + '_results.csv';     // Download file name
+            const url = window.URL.createObjectURL(file);
+            temporaryLink.href = url;
+            temporaryLink.style.display = 'none';   // Don't display the link
+            document.body.appendChild(temporaryLink);   // Add the link to HTML
+            temporaryLink.click();  // Auto-click the link
+            document.body.removeChild(temporaryLink);   // Remove the link from HTML
+        }
+
+        // Get quiz results
+        const params = new URLSearchParams(window.location.search);
+        const quizName = params.get('name');
+
+        axios.get('http://localhost:5000/teacher/quizresults?name=' + quizName).then(result=>{
+            console.log('Get quiz results', result);
+            
+            const quiz = result.data.quiz;
+
+            var results = '';
+            for (var i = 0; i < quiz.participants.length; i++) {
+                
+                var hasScript = false;
+                for (var j = 0; j < quiz.scripts.length; j++) {
+
+                    if (quiz.scripts[j].matriculationNumber == quiz.participants[i].matriculationNumber) {
+                        hasScript = true;
+                        results += `
+                            <tr>
+                                <td>${i+1}</td>
+                                <td>${quiz.participants[i].name}</td>
+                                <td>${quiz.participants[i].matriculationNumber}</td>
+                                <td>${quiz.scripts[j].mark}</td>
+                                <td>${quiz.scripts[j].answers.length}</td>
+                                <td>${(new Date(quiz.scripts[j].startedAt)).toISOString()}</td>
+                                <td>${quiz.scripts[j].lastAnsweredAt == null ? 'Not answered' : (new Date(quiz.scripts[j].lastAnsweredAt)).toISOString()}</td>
+                                <td><button class="EditButton"><a href="http://localhost:5000/teacher/quizScript.html?quizName=${quiz.name}&matriculationNumber=${quiz.participants[i].matriculationNumber}">Script</a></button></td>
+                            </tr>
+                        `;
+                        break;
+                    }
+                }
+
+                if (!hasScript) {
+                    results += `
+                        <tr>
+                            <td>${i+1}</td>
+                            <td>${quiz.participants[i].name}</td>
+                            <td>${quiz.participants[i].matriculationNumber}</td>
+                            <td>Not yet started</td>
+                            <td>0</td>
+                            <td>Not started</td>
+                            <td>Not answered</td>
+                            <td></td>
+                        </tr>
+                    `;
+                }
+            }
+
+            const quizResults = `
+                <p>Name: ${quiz.name}</p>
+                <p>Status: ${quiz.status}</p>
+                <p>Created at: ${(new Date(quiz.createdAt)).toLocaleString()}</p>
+                <p>Last edited at: ${(new Date(quiz.editedAt)).toLocaleString()}</p>
+                
+                <button class="AddQuestionButton" onclick="downloadQuizResults('${quiz.name}')">Download Quiz Results</button>
+                
+                <p>Results: </p>
+                <table id="quizResultsTable">
+                    <thead>
+                        <th></th>
+                        <th>Student name</th>
+                        <th>Matriculation number</th>
+                        <th>Mark</th>
+                        <th>Number of questions answered</th>
+                        <th>Started at</th>
+                        <th>Last answered at</th>
+                        <th></th>
+                    </thead>
+                    <tbody id="quizResultsTableBody">
+                        ${results}
+                    </tbody>
+                <table>
+            `;
+            document.getElementById('quizResults').innerHTML = quizResults;
+
+        }).catch(error=>{
+            console.log('Get quiz results error', error);
+
+            if (error.response?.status === 400) {
+                alert(error.response.data.message);
+            }
+            else {
+                alert('Cannot get quiz results');
+            }
+        });
+    </script>
+</html>
